@@ -14,7 +14,7 @@ import { ArrowUp } from "lucide-react";
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
 const EXPANDED = { w: 400, h: 190 };
-const TOP_MARGIN = 6; // gap from top of the screen
+const TOP_MARGIN = 6;
 type InstalledApp = { id: string; name: string };
 type SpotifyPlayback = { title: string; artist: string; artwork: string | null };
 
@@ -22,7 +22,7 @@ async function placeWindow(w: number, h: number) {
   const win = getCurrentWindow();
   const monitor = await primaryMonitor();
   if (!monitor) return;
-  const scale = monitor.scaleFactor; // handles Windows DPI scaling
+  const scale = monitor.scaleFactor;
   const screenW = monitor.size.width / scale;
   const x = monitor.position.x / scale + (screenW - w) / 2;
   const y = monitor.position.y / scale + TOP_MARGIN;
@@ -71,8 +71,9 @@ export default function Island() {
   }, []);
 
   useEffect(() => {
-    if (!spotifyPlayback) return;
-    setWaveColor(`hsl(${Math.floor(Math.random() * 360)} 90% 65%)`);
+    if (spotifyPlayback) {
+      setWaveColor(`hsl(${Math.floor(Math.random() * 360)} 90% 65%)`);
+    }
   }, [spotifyPlayback?.title, spotifyPlayback?.artist]);
 
   useEffect(() => {
@@ -83,22 +84,19 @@ export default function Island() {
 
   const expand = async () => {
     if (timer.current) clearTimeout(timer.current);
-    await placeWindow(EXPANDED.w, EXPANDED.h); 
+    await placeWindow(EXPANDED.w, EXPANDED.h);
     expandedRef.current = true;
-    setExpanded(true);                         
+    setExpanded(true);
   };
 
   const collapse = () => {
     if (messageInputFocused.current) return;
-    setExpanded(false);                        
-    timer.current = setTimeout(
-      () => {
-        expandedRef.current = false;
-        const size = spotifyPlayback ? PLAYING : COLLAPSED;
-        placeWindow(size.w, size.h);
-      },
-      450
-    );
+    setExpanded(false);
+    timer.current = setTimeout(() => {
+      expandedRef.current = false;
+      const size = spotifyPlayback ? PLAYING : COLLAPSED;
+      void placeWindow(size.w, size.h);
+    }, 450);
   };
 
   const compactSize = spotifyPlayback ? PLAYING : COLLAPSED;
@@ -123,8 +121,8 @@ export default function Island() {
     const command = trimmedMessage.match(/^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)[.!?]*$/i);
     if (!command) return;
 
-    const requestedName = command[1].toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
     const normalize = (name: string) => name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    const requestedName = normalize(command[1]);
     const exactMatches = installedApps.filter((app) => normalize(app.name) === requestedName);
     const partialMatches = installedApps.filter((app) => normalize(app.name).includes(requestedName));
     const matches = exactMatches.length ? exactMatches : partialMatches;
@@ -155,11 +153,7 @@ export default function Island() {
   };
 
   return (
-    <main
-      className="flex h-screen w-screen justify-center"
-      onMouseEnter={expand}
-      onMouseLeave={collapse}
-    >
+    <main className="flex h-screen w-screen justify-center" onMouseEnter={expand} onMouseLeave={collapse}>
       <section
         aria-label="Dynamic Island"
         className="flex shrink-0 flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
@@ -171,12 +165,8 @@ export default function Island() {
       >
         {expanded ? (
           <>
-            <header className="flex items-center justify-between px-4 pb-1 pt-3">
-              <h1 className="text-xs font-medium text-white/75">Quick chat</h1>
-            </header>
-
             {spotifyPlayback && (
-              <p className="mx-3 mb-1 flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.06] px-2 py-1.5">
+              <p className="mx-3 mb-1 flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.06] px-2 py-1.5 mt-2">
                 <span
                   aria-hidden="true"
                   className="size-8 shrink-0 rounded-lg bg-white/10 bg-cover bg-center"
@@ -186,8 +176,21 @@ export default function Island() {
                   <span className="truncate text-[11px] font-medium text-white/90">{spotifyPlayback.title}</span>
                   <span className="truncate text-[10px] text-white/50">{spotifyPlayback.artist}</span>
                 </span>
+                <span aria-hidden="true" className="ml-auto flex h-5 shrink-0 items-center gap-[2px] px-1">
+                  {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
+                    <span
+                      key={index}
+                      className={`music-bar w-[3px] rounded-full ${height}`}
+                      style={{
+                        backgroundColor: waveColor,
+                        animationDelay: `${index * 90}ms`,
+                        animationDuration: `${560 + (index % 3) * 130}ms`,
+                      }}
+                    />
+                  ))}
+                </span>
               </p>
-            )}
+            )} 
 
             <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-1.5 overflow-y-auto px-4 py-1 text-xs">
               <li className="max-w-[85%] self-start rounded-2xl rounded-tl-md bg-white/10 px-3 py-2 text-white/75">
@@ -214,9 +217,7 @@ export default function Island() {
                   messageInputFocused.current = true;
                   if (timer.current) clearTimeout(timer.current);
                 }}
-                onBlur={() => {
-                  messageInputFocused.current = false;
-                }}
+                onBlur={() => { messageInputFocused.current = false; }}
                 placeholder="Message..."
                 className="h-9 min-w-0 flex-1 rounded-full border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/35 shadow-none focus-visible:border-white/25 focus-visible:ring-white/10"
               />
@@ -231,39 +232,37 @@ export default function Island() {
               </Button>
             </form>
           </>
-        ) : (
-          spotifyPlayback ? (
-            <p aria-label={`Now playing ${spotifyPlayback.title} by ${spotifyPlayback.artist}`} className="flex h-full items-center justify-between gap-2 px-3">
-              <span className="flex min-w-0 items-center gap-2">
-                <span aria-hidden="true" className="flex h-5 shrink-0 items-center gap-[2px]">
-                  {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
-                    <span
-                      key={index}
-                      className={`music-bar w-[3px] rounded-full ${height}`}
-                      style={{
-                        backgroundColor: waveColor,
-                        animationDelay: `${index * 90}ms`,
-                        animationDuration: `${560 + (index % 3) * 130}ms`,
-                      }}
-                    />
-                  ))}
-                </span>
-                <span className="flex min-w-0 flex-col text-left">
-                  <span className="truncate text-[10px] font-medium text-white/90">{spotifyPlayback.title}</span>
-                  <span className="truncate text-[9px] text-white/45">{spotifyPlayback.artist}</span>
-                </span>
+        ) : spotifyPlayback ? (
+          <p aria-label={`Now playing ${spotifyPlayback.title} by ${spotifyPlayback.artist}`} className="flex h-full items-center justify-between gap-2 px-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <span aria-hidden="true" className="flex h-5 shrink-0 items-center gap-[2px]">
+                {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
+                  <span
+                    key={index}
+                    className={`music-bar w-[3px] rounded-full ${height}`}
+                    style={{
+                      backgroundColor: waveColor,
+                      animationDelay: `${index * 90}ms`,
+                      animationDuration: `${560 + (index % 3) * 130}ms`,
+                    }}
+                  />
+                ))}
               </span>
-              <span
-                aria-hidden="true"
-                className="size-8 shrink-0 rounded-full bg-white/10 bg-cover bg-center"
-                style={spotifyPlayback.artwork ? { backgroundImage: `url(${spotifyPlayback.artwork})` } : undefined}
-              />
-            </p>
-          ) : (
-            <p aria-label="Dynamic Island collapsed" className="flex h-full items-center justify-center">
-              <span aria-hidden="true" className="size-2 rounded-full bg-white" />
-            </p>
-          )
+              <span className="flex min-w-0 flex-col text-left">
+                <span className="truncate text-[10px] font-medium text-white/90">{spotifyPlayback.title}</span>
+                <span className="truncate text-[9px] text-white/45">{spotifyPlayback.artist}</span>
+              </span>
+            </span>
+            <span
+              aria-hidden="true"
+              className="size-8 shrink-0 rounded-full bg-white/10 bg-cover bg-center"
+              style={spotifyPlayback.artwork ? { backgroundImage: `url(${spotifyPlayback.artwork})` } : undefined}
+            />
+          </p>
+        ) : (
+          <p aria-label="Dynamic Island collapsed" className="flex h-full items-center justify-center">
+            <span aria-hidden="true" className="size-2 rounded-full bg-white" />
+          </p>
         )}
       </section>
     </main>
