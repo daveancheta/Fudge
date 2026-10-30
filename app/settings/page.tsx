@@ -2,28 +2,48 @@
 
 import { useEffect, useState } from "react";
 import { MonitorSmartphone } from "lucide-react";
-import { createAuthClient } from "better-auth/client";
-import { redirect } from "next/navigation";
+import { createAuthClient } from "better-auth/react";
 const authClient = createAuthClient();
 
 const SETTINGS_STORAGE_KEY = "fudge-settings";
 type FudgeSettings = { waveColor: string; randomWaveColor: boolean; animateWave: boolean };
 const DEFAULT_SETTINGS: FudgeSettings = { waveColor: "#ff637d", randomWaveColor: true, animateWave: true };
 
-const signIn = async () => {
-  try {
-    await authClient.signIn.social({
-      provider: "google",
-    });
-    redirect('/settings')
-  } catch (error) {
-    console.log("Error signing in:", error);
-  }
-};
-
 export default function SettingsPage() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [accountMessage, setAccountMessage] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+
+  const signIn = async () => {
+    setAccountMessage("");
+    setSigningIn(true);
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/settings",
+      });
+      if (error) setAccountMessage(error.message || "Google sign-in failed.");
+    } catch (error) {
+      setAccountMessage(error instanceof Error ? error.message : "Google sign-in failed.");
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const signOut = async () => {
+    setAccountMessage("");
+    setSigningOut(true);
+    try {
+      const { error } = await authClient.signOut();
+      if (error) setAccountMessage(error.message || "Could not sign out.");
+    } catch (error) {
+      setAccountMessage(error instanceof Error ? error.message : "Could not sign out.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -95,18 +115,60 @@ export default function SettingsPage() {
       <section className="mt-9 space-y-4 border-t border-white/10 pt-6">
         <div>
           <h2 className="text-sm font-medium">Account</h2>
-          <p className="mt-1 text-xs text-white/45">Sign in to use Fudge across your devices.</p>
+          <p className="mt-1 text-xs text-white/45">
+            {sessionPending
+              ? "Checking your account…"
+              : session?.user
+                ? "Your Fudge account"
+                : "Sign in to use Fudge across your devices."}
+          </p>
         </div>
 
         <div className="rounded-xl border border-white/10 p-4">
-          <button
-            type="button"
-            onClick={signIn}
-            className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-white text-sm font-medium text-black transition-colors hover:bg-white/90"
-          >
-            <GoogleMark />
-            Continue with Google
-          </button>
+          {sessionPending ? (
+            <div role="status" aria-label="Loading account" className="flex items-center gap-3">
+              <span className="size-11 shrink-0 animate-pulse rounded-full bg-white/10" />
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="h-3 w-28 animate-pulse rounded bg-white/10" />
+                <span className="h-2.5 w-40 max-w-full animate-pulse rounded bg-white/[0.06]" />
+              </span>
+              <span className="h-8 w-14 animate-pulse rounded-lg bg-white/[0.06]" />
+              <span className="sr-only">Checking your sign-in status</span>
+            </div>
+          ) : session?.user ? (
+            <div className="flex items-center gap-3">
+              {session.user.image ? (
+                // Google profile photos are external URLs, so use a regular img element.
+                <img src={session.user.image} alt="" className="size-11 rounded-full bg-white/10 object-cover" />
+              ) : (
+                <span aria-hidden="true" className="flex size-11 items-center justify-center rounded-full bg-white/10 text-sm font-medium text-white/75">
+                  {session.user.name?.trim().charAt(0).toUpperCase() || "?"}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{session.user.name || "Signed in"}</span>
+                <span className="block truncate text-xs text-white/45">{session.user.email}</span>
+              </span>
+              <button
+                type="button"
+                onClick={signOut}
+                disabled={signingOut}
+                className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-wait disabled:opacity-50"
+              >
+                {signingOut ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={signIn}
+              disabled={signingIn}
+              className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-white text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:cursor-wait disabled:opacity-60"
+            >
+              <GoogleMark />
+              {signingIn ? "Connecting…" : "Continue with Google"}
+            </button>
+          )}
           {accountMessage && <p role="status" className="mt-3 text-center text-xs text-white/50">{accountMessage}</p>}
         </div>
 

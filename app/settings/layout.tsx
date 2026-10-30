@@ -1,19 +1,3 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
-
-export default async function SignupPage({ children }: { children: React.ReactNode }) {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    })
-
-    if (!session) {
-        redirect('/settings')
-    }
-
-    return (
-        <div>
-            {children}
-        </div>
-    )
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
