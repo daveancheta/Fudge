@@ -201,6 +201,11 @@ body {
   --pane-shadow: rgba(0, 0, 0, 0.5);
 }
 
+.scrollable-div {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
