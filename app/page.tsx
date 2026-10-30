@@ -15,8 +15,22 @@ const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
 const EXPANDED = { w: 400, h: 190 };
 const TOP_MARGIN = 6;
+const POSITION_STORAGE_KEY = "fudge-island-position";
 type InstalledApp = { id: string; name: string };
 type SpotifyPlayback = { title: string; artist: string; artwork: string | null };
+
+type SavedPosition = { centerX: number; topY: number };
+
+function getSavedPosition(): SavedPosition | null {
+  try {
+    const saved = localStorage.getItem(POSITION_STORAGE_KEY);
+    if (!saved) return null;
+    const position = JSON.parse(saved) as SavedPosition;
+    return Number.isFinite(position.centerX) && Number.isFinite(position.topY) ? position : null;
+  } catch {
+    return null;
+  }
+}
 
 async function placeWindow(w: number, h: number) {
   const win = getCurrentWindow();
@@ -24,8 +38,9 @@ async function placeWindow(w: number, h: number) {
   if (!monitor) return;
   const scale = monitor.scaleFactor;
   const screenW = monitor.size.width / scale;
-  const x = monitor.position.x / scale + (screenW - w) / 2;
-  const y = monitor.position.y / scale + TOP_MARGIN;
+  const saved = getSavedPosition();
+  const x = saved ? saved.centerX - w / 2 : monitor.position.x / scale + (screenW - w) / 2;
+  const y = saved?.topY ?? monitor.position.y / scale + TOP_MARGIN;
   await win.setSize(new LogicalSize(w, h));
   await win.setPosition(new LogicalPosition(x, y));
 }
@@ -43,9 +58,38 @@ export default function Island() {
 
   useEffect(() => {
     void placeWindow(COLLAPSED.w, COLLAPSED.h);
+    const win = getCurrentWindow();
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    void win.onMoved(({ payload }) => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        try {
+          const [size, scale] = await Promise.all([win.outerSize(), win.scaleFactor()]);
+          localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify({
+            centerX: (payload.x + size.width / 2) / scale,
+            topY: payload.y / scale,
+          } satisfies SavedPosition));
+        } catch {
+          // Keep the island usable if position persistence is unavailable.
+        }
+      }, 120);
+    }).then((stopListening) => {
+      if (disposed) stopListening();
+      else unlisten = stopListening;
+    });
+
     invoke<InstalledApp[]>("list_installed_apps")
       .then(setInstalledApps)
       .catch(() => setInstalledApps([]));
+
+    return () => {
+      disposed = true;
+      if (saveTimer) clearTimeout(saveTimer);
+      unlisten?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -156,7 +200,12 @@ export default function Island() {
     <main className="flex h-screen w-screen justify-center" onMouseEnter={expand} onMouseLeave={collapse}>
       <section
         aria-label="Dynamic Island"
-        className="flex shrink-0 flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        className="flex shrink-0 cursor-move flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        onMouseDown={(event) => {
+          if (event.button !== 0) return;
+          if (event.target instanceof Element && event.target.closest("input, button")) return;
+          void getCurrentWindow().startDragging().catch(() => undefined);
+        }}
         style={{
           width: expanded ? EXPANDED.w : compactSize.w,
           height: expanded ? EXPANDED.h : compactSize.h,
@@ -219,14 +268,14 @@ export default function Island() {
                 }}
                 onBlur={() => { messageInputFocused.current = false; }}
                 placeholder="Message..."
-                className="h-9 min-w-0 flex-1 rounded-full border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/35 shadow-none focus-visible:border-white/25 focus-visible:ring-white/10"
+                className="h-9 min-w-0 flex-1 cursor-text rounded-full border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/35 shadow-none focus-visible:border-white/25 focus-visible:ring-white/10"
               />
               <Button
                 type="submit"
                 disabled={!message.trim()}
                 size="icon-sm"
                 aria-label="Send command"
-                className="size-9 rounded-full bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
+                className="size-9 cursor-pointer rounded-full bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
               >
                 <ArrowUp aria-hidden="true" className="size-4" />
               </Button>
