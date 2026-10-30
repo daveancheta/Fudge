@@ -16,8 +16,11 @@ const PLAYING = { w: 250, h: 44 };
 const EXPANDED = { w: 400, h: 190 };
 const TOP_MARGIN = 6;
 const POSITION_STORAGE_KEY = "fudge-island-position";
+const SETTINGS_STORAGE_KEY = "fudge-settings";
 type InstalledApp = { id: string; name: string };
 type SpotifyPlayback = { title: string; artist: string; artwork: string | null };
+type FudgeSettings = { waveColor: string; randomWaveColor: boolean; animateWave: boolean };
+const DEFAULT_SETTINGS: FudgeSettings = { waveColor: "#ff637d", randomWaveColor: true, animateWave: true };
 
 type SavedPosition = { centerX: number; topY: number };
 
@@ -52,6 +55,7 @@ export default function Island() {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [spotifyPlayback, setSpotifyPlayback] = useState<SpotifyPlayback | null>(null);
   const [waveColor, setWaveColor] = useState("#ff637d");
+  const [settings, setSettings] = useState<FudgeSettings>(DEFAULT_SETTINGS);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageInputFocused = useRef(false);
   const expandedRef = useRef(false);
@@ -115,10 +119,24 @@ export default function Island() {
   }, []);
 
   useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (saved) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
+      } catch { /* Use defaults when settings are unavailable. */ }
+    };
+    loadSettings();
+    window.addEventListener("storage", loadSettings);
+    return () => window.removeEventListener("storage", loadSettings);
+  }, []);
+
+  useEffect(() => {
     if (spotifyPlayback) {
-      setWaveColor(`hsl(${Math.floor(Math.random() * 360)} 90% 65%)`);
+      setWaveColor(settings.randomWaveColor
+        ? `hsl(${Math.floor(Math.random() * 360)} 90% 65%)`
+        : settings.waveColor);
     }
-  }, [spotifyPlayback?.title, spotifyPlayback?.artist]);
+  }, [spotifyPlayback?.title, spotifyPlayback?.artist, settings]);
 
   useEffect(() => {
     if (expandedRef.current) return;
@@ -151,6 +169,16 @@ export default function Island() {
     if (!trimmedMessage) return;
     setSentMessages((messages) => [...messages, { text: trimmedMessage, from: "user" }]);
     setMessage("");
+
+    if (/^(?:please\s+)?(?:open|show|launch)\s+fudge\s+settings[.!?]*$/i.test(trimmedMessage)) {
+      try {
+        await invoke("open_settings");
+        setSentMessages((messages) => [...messages, { text: "Opening Fudge settings.", from: "assistant" }]);
+      } catch (error) {
+        setSentMessages((messages) => [...messages, { text: String(error), from: "assistant" }]);
+      }
+      return;
+    }
 
     const listRequest = /^(?:what|which|list)\s+(?:apps|applications)(?:\s+can\s+you\s+open)?[?!.]*$/i.test(trimmedMessage);
     if (listRequest) {
@@ -229,7 +257,7 @@ export default function Island() {
                   {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
                     <span
                       key={index}
-                      className={`music-bar w-[3px] rounded-full ${height}`}
+                      className={`${settings.animateWave ? "music-bar" : "music-bar-still"} w-[3px] rounded-full ${height}`}
                       style={{
                         backgroundColor: waveColor,
                         animationDelay: `${index * 90}ms`,
@@ -288,7 +316,7 @@ export default function Island() {
                 {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
                   <span
                     key={index}
-                    className={`music-bar w-[3px] rounded-full ${height}`}
+                    className={`${settings.animateWave ? "music-bar" : "music-bar-still"} w-[3px] rounded-full ${height}`}
                     style={{
                       backgroundColor: waveColor,
                       animationDelay: `${index * 90}ms`,

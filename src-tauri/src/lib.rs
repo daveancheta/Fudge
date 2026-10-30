@@ -185,6 +185,34 @@ fn launch_installed_app(app_id: String) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn open_settings(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("settings") {
+        window.show().map_err(|error| error.to_string())?;
+        window.set_focus().map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+
+    let url = if cfg!(debug_assertions) {
+        tauri::WebviewUrl::External(
+            "http://localhost:3000/settings"
+                .parse::<tauri::Url>()
+                .map_err(|error| error.to_string())?,
+        )
+    } else {
+        tauri::WebviewUrl::App("settings.html".into())
+    };
+
+    tauri::WebviewWindowBuilder::new(&app, "settings", url)
+        .title("Fudge Settings")
+        .inner_size(520.0, 440.0)
+        .min_inner_size(440.0, 360.0)
+        .center()
+        .build()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -222,7 +250,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_installed_apps,
             launch_installed_app,
-            get_spotify_playback
+            get_spotify_playback,
+            open_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
