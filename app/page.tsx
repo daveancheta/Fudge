@@ -13,7 +13,7 @@ import { ArrowUp } from "lucide-react";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
-const EXPANDED = { w: 400, h: 190 };
+const EXPANDED = { w: 560, h: 360 };
 const TOP_MARGIN = 6;
 const POSITION_STORAGE_KEY = "fudge-island-position";
 const SETTINGS_STORAGE_KEY = "fudge-settings";
