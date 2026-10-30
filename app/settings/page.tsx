@@ -2,10 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { MonitorSmartphone } from "lucide-react";
+import { createAuthClient } from "better-auth/client";
+import { redirect } from "next/navigation";
+const authClient = createAuthClient();
 
 const SETTINGS_STORAGE_KEY = "fudge-settings";
 type FudgeSettings = { waveColor: string; randomWaveColor: boolean; animateWave: boolean };
 const DEFAULT_SETTINGS: FudgeSettings = { waveColor: "#ff637d", randomWaveColor: true, animateWave: true };
+
+const signIn = async () => {
+  try {
+    await authClient.signIn.social({
+      provider: "google",
+    });
+    redirect('/settings')
+  } catch (error) {
+    console.log("Error signing in:", error);
+  }
+};
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -87,7 +101,7 @@ export default function SettingsPage() {
         <div className="rounded-xl border border-white/10 p-4">
           <button
             type="button"
-            onClick={() => setAccountMessage("Google sign-in is not connected yet.")}
+            onClick={signIn}
             className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-white text-sm font-medium text-black transition-colors hover:bg-white/90"
           >
             <GoogleMark />

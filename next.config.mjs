@@ -4,9 +4,9 @@ const internalHost = process.env.TAURI_DEV_HOST || 'localhost';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Ensure Next.js uses SSG instead of SSR
-  // https://nextjs.org/docs/pages/building-your-application/deploying/static-exports
-  output: 'export',
+  // Keep the development server dynamic so Better Auth can handle POST requests.
+  // Production remains a static Tauri export; auth then needs a hosted API endpoint.
+  output: isProd ? 'export' : undefined,
   // Note: This feature is required to use the Next.js Image component in SSG mode.
   // See https://nextjs.org/docs/messages/export-image-api for different workarounds.
   images: {
