@@ -46,6 +46,34 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-pane-shadow: var(--pane-shadow);
+  --color-pane-highlight: var(--pane-highlight);
+  --color-pane-knob: var(--pane-knob);
+  --pane-tinted-opacity: var(--pane-tinted-opacity);
+  --color-pane-destructive-text: var(--pane-destructive-text);
+  --color-pane-destructive: var(--pane-destructive);
+  --color-pane-border-accent: var(--pane-border-accent);
+  --color-pane-accent-text: var(--pane-accent-text);
+  --pane-accent-opacity: var(--pane-accent-opacity);
+  --color-pane-accent-foreground: var(--pane-accent-foreground);
+  --color-pane-accent: var(--pane-accent);
+  --color-pane-border-transparent: var(--pane-border-transparent);
+  --color-pane-border-default: var(--pane-border-default);
+  --color-pane-border-blur: var(--pane-border-blur);
+  --pane-border-width: var(--pane-border-width);
+  --color-pane-nested-transparent: var(--pane-nested-transparent);
+  --color-pane-nested-default: var(--pane-nested-default);
+  --color-pane-nested-blur: var(--pane-nested-blur);
+  --color-pane-tint-overlay: var(--pane-tint-overlay);
+  --pane-blur-overlay: var(--pane-blur-overlay);
+  --color-pane-tint-transparent: var(--pane-tint-transparent);
+  --color-pane-tint-default: var(--pane-tint-default);
+  --color-pane-tint-blur: var(--pane-tint-blur);
+  --pane-saturation: var(--pane-saturation);
+  --pane-blur-transparent: var(--pane-blur-transparent);
+  --pane-blur-default: var(--pane-blur-default);
+  --pane-blur-blur: var(--pane-blur-blur);
+  --pane-fg: var(--pane-fg);
 }
 
 html,
@@ -88,6 +116,34 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --pane-fg: var(--foreground);
+  --pane-blur-blur: 12px;
+  --pane-blur-default: 5px;
+  --pane-blur-transparent: 0px;
+  --pane-saturation: 1.7;
+  --pane-tint-blur: rgba(255, 255, 255, 0.26);
+  --pane-tint-default: rgba(255, 255, 255, 0.08);
+  --pane-tint-transparent: rgba(255, 255, 255, 0);
+  --pane-blur-overlay: 24px;
+  --pane-tint-overlay: rgba(255, 255, 255, 0.76);
+  --pane-nested-blur: rgba(255, 255, 255, 0.4);
+  --pane-nested-default: rgba(255, 255, 255, 0.2);
+  --pane-nested-transparent: rgba(255, 255, 255, 0);
+  --pane-border-width: 0.5px;
+  --pane-border-blur: rgba(255, 255, 255, 0.85);
+  --pane-border-default: rgba(255, 255, 255, 0.6);
+  --pane-border-transparent: rgba(255, 255, 255, 0.6);
+  --pane-accent: #34c759;
+  --pane-accent-foreground: #ffffff;
+  --pane-accent-opacity: 82%;
+  --pane-accent-text: #248a3d;
+  --pane-border-accent: rgba(255, 255, 255, 0.7);
+  --pane-destructive: #ff3b30;
+  --pane-destructive-text: #d70015;
+  --pane-tinted-opacity: 16%;
+  --pane-knob: rgba(255, 255, 255, 0.92);
+  --pane-highlight: rgba(255, 255, 255, 0.85);
+  --pane-shadow: rgba(0, 0, 0, 0.1);
 }
 
 .dark {
@@ -122,6 +178,27 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --pane-tint-blur: rgba(28, 28, 32, 0.3);
+  --pane-tint-default: rgba(18, 18, 22, 0.12);
+  --pane-tint-transparent: rgba(18, 18, 22, 0);
+  --pane-tint-overlay: rgba(28, 28, 32, 0.76);
+  --pane-nested-blur: rgba(255, 255, 255, 0.12);
+  --pane-nested-default: rgba(255, 255, 255, 0.07);
+  --pane-nested-transparent: rgba(255, 255, 255, 0);
+  --pane-border-blur: rgba(255, 255, 255, 0.14);
+  --pane-border-default: rgba(255, 255, 255, 0.1);
+  --pane-border-transparent: rgba(255, 255, 255, 0.1);
+  --pane-accent: #30d158;
+  --pane-accent-foreground: #ffffff;
+  --pane-accent-opacity: 75%;
+  --pane-accent-text: #30db5b;
+  --pane-border-accent: rgba(255, 255, 255, 0.24);
+  --pane-destructive: #ff453a;
+  --pane-destructive-text: #ff6961;
+  --pane-tinted-opacity: 22%;
+  --pane-knob: rgba(255, 255, 255, 0.95);
+  --pane-highlight: rgba(255, 255, 255, 0.22);
+  --pane-shadow: rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
@@ -133,5 +210,8 @@ body {
   }
   html {
     @apply font-sans;
+  }
+  :where(html) {
+    --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
   }
 }

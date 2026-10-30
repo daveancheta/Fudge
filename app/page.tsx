@@ -6,6 +6,7 @@ import {
   LogicalSize,
   LogicalPosition,
 } from "@tauri-apps/api/window";
+import { Pane } from "@/components/ui/pane";
 
 const COLLAPSED = { w: 180, h: 36 };
 const EXPANDED = { w: 400, h: 160 };
@@ -51,8 +52,8 @@ export default function Island() {
       onMouseEnter={expand}
       onMouseLeave={collapse}
     >
-      <div
-        className="overflow-hidden bg-black text-white select-none cursor-default
+      <Pane radius={24}
+        className="overflow-hidden  select-none cursor-default
                    transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
         style={{
           width: expanded ? EXPANDED.w : COLLAPSED.w,
@@ -71,7 +72,7 @@ export default function Island() {
             </div>
             : <div className="w-2 h-2 bg-white rounded-full"></div>}
         </div>
-      </div>
+      </Pane>
     </div>
   );
 }
