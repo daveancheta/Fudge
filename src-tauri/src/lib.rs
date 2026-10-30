@@ -1,4 +1,5 @@
 use std::process::Command;
+use tauri::Manager;
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +69,9 @@ fn launch_installed_app(app_id: String) -> Result<String, String> {
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
+      if let Some(window) = app.get_webview_window("main") {
+        window.set_always_on_top(true)?;
+      }
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()

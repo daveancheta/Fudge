@@ -128,10 +128,6 @@ export default function Island() {
           <>
             <header className="flex items-center justify-between px-4 pb-1 pt-3">
               <h1 className="text-xs font-medium text-white/75">Quick chat</h1>
-              <span className="flex items-center gap-1.5 text-[10px] text-white/45">
-                <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-400" />
-                Ready
-              </span>
             </header>
 
             <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-1.5 overflow-y-auto px-4 py-1 text-xs">
@@ -179,7 +175,6 @@ export default function Island() {
         ) : (
           <p aria-label="Dynamic Island collapsed" className="flex h-full items-center justify-center gap-2 text-[10px] font-medium tracking-wide text-white/70">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-white/80" />
-            ISLAND
           </p>
         )}
       </section>
