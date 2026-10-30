@@ -206,6 +206,16 @@ body {
   scrollbar-width: none;
 }
 
+.music-bar {
+  transform-origin: center bottom;
+  animation: music-bars 850ms ease-in-out infinite;
+}
+
+@keyframes music-bars {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1); }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
