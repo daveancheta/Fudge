@@ -9,7 +9,7 @@ import {
 } from "@tauri-apps/api/window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUp, AudioLines, ChevronDown, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { ArrowUp, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
 import { useSyncedChat, type SyncedChatMessage } from "@/lib/use-synced-chat";
@@ -260,56 +260,27 @@ export default function Island() {
         aria-label={expanded ? "Dynamic Island" : "Expand Dynamic Island"}
         role={expanded ? "region" : "button"}
         tabIndex={expanded ? undefined : 0}
-        className={`flex shrink-0 flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${expanded ? "cursor-move" : "cursor-pointer"}`}
-        onClick={(event) => {
-          if (expanded || (event.target instanceof Element && event.target.closest("button, input"))) return;
-          void expand();
-        }}
-        onKeyDown={(event) => {
-          if (!expanded && (event.key === "Enter" || event.key === " ")) {
-            event.preventDefault();
-            void expand();
-          }
-        }}
-        onMouseDown={(event) => {
-          if (event.button !== 0) return;
-          if (!expanded) return;
-          if (event.target instanceof Element && event.target.closest("input, button")) return;
-          void getCurrentWindow().startDragging().catch(() => undefined);
-        }}
+        className={`relative flex shrink-0 flex-col overflow-hidden border border-white/[0.11] bg-[#171615] text-[#f5f1e9] ${expanded ? "cursor-move" : "cursor-pointer"}`}
+      
+      
         style={{
           width: expanded ? EXPANDED.w : compactSize.w,
           height: expanded ? EXPANDED.h : compactSize.h,
           borderRadius: expanded ? 32 : 9999,
+          transition: expanded
+            ? "width 280ms cubic-bezier(0.32,0.72,0,1), height 320ms 280ms cubic-bezier(0.32,0.72,0,1), border-radius 500ms cubic-bezier(0.32,0.72,0,1)"
+            : "height 280ms cubic-bezier(0.32,0.72,0,1), width 320ms 280ms cubic-bezier(0.32,0.72,0,1), border-radius 500ms cubic-bezier(0.32,0.72,0,1)",
         }}
       >
         {expanded ? (
           <>
-            <header className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <div className="relative z-10 flex items-center justify-between">
-                  <span className="grid size-9 place-items-center rounded-[13px] bg-white text-[#25231f] shadow-[0_5px_15px_rgba(44,37,27,.13)] transition-transform group-hover:-rotate-6">
-                    <AudioLines className="size-[17px]" strokeWidth={2.2} />
-                  </span>
-                </div>
-                <span className="flex flex-col">
-                  <span className="text-xs font-semibold tracking-wide text-white/95">Fudge assistant</span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-white/40">
-                    <span className="size-1.5 rounded-full bg-emerald-400" /> Ready to help
-                  </span>
+            <header className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-5 py-3.5">
+              <div className="flex items-center gap-3">
+                <img src="/icon.svg" alt="" width="32" height="32" className="size-8 rounded-[9px]" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[11px] font-semibold tracking-[.01em] text-white/90">Fudge</span>
                 </span>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Collapse Dynamic Island"
-                title="Collapse"
-                onClick={collapse}
-                className="size-8 rounded-lg text-white/45 hover:bg-white/[0.07] hover:text-white/80"
-              >
-                <ChevronDown aria-hidden="true" className="size-4" />
-              </Button>
             </header>
 
             {mediaPlayback && (
@@ -350,10 +321,10 @@ export default function Island() {
               </div>
             )}
 
-            <ol ref={chatListRef} aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs">
+            <ol ref={chatListRef} aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-5 py-4 text-xs">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
-                <div className="rounded-2xl rounded-bl-md border border-white/[0.07] bg-white/[0.055] px-3.5 py-2.5 text-[11px] leading-[1.65] text-white/65">
-                  <p className="mb-1 font-medium text-white/90">Hey, I’m Fudge.</p>
+                <div className="rounded-2xl rounded-bl-md border border-white/[0.08] bg-white/[0.035] px-3.5 py-3 text-[11px] leading-[1.65] text-white/55">
+                  <p className="mb-1.5 text-[15px] font-medium tracking-[-.03em] text-white/90">What can I help with?</p>
                   I can open or close apps on your computer. Try <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;open Chrome&quot;</span> or <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;close Chrome&quot;</span>.
                 </div>
               </li>
@@ -361,32 +332,32 @@ export default function Island() {
                 <li
                   key={`${index}-${sentMessage.text}`}
                   className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 text-[11px] leading-[1.6] ${sentMessage.from === "user"
-                    ? "self-end rounded-br-md bg-white text-black shadow-[0_4px_16px_rgba(255,99,125,0.18)]"
-                    : "self-start rounded-bl-md border border-white/[0.07] bg-white/[0.055] text-white/75"}`}
+                    ? "self-end rounded-br-md bg-[#d99476] text-[#211e1a]"
+                    : "self-start rounded-bl-md border border-white/[0.08] bg-white/[0.045] text-white/75"}`}
                 >
                   {sentMessage.text}
                 </li>
               ))}
             </ol>
 
-            <form onSubmit={sendMessage} className="shrink-0 border-t border-white/[0.08] bg-white/[0.015] px-3 pb-3 pt-2.5">
-              <div className="flex items-center gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.045] p-1.5 pl-3 focus-within:border-white/20 focus-within:bg-white/[0.06]">
+            <form onSubmit={sendMessage} className="shrink-0 border-t border-white/[0.08] px-4 pb-3.5 pt-3">
+              <div className="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-[#211f1d] p-1.5 pl-3.5 focus-within:border-[#d99476]/60">
                 <Input
                   aria-label="Chat message"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
-                    onFocus={() => {
-                      if (timer.current) clearTimeout(timer.current);
-                    }}
-                  placeholder="Ask Fudge or try ‘close Chrome’..."
-                  className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
+                  onFocus={() => {
+                    if (timer.current) clearTimeout(timer.current);
+                  }}
+                  placeholder="Message Fudge…"
+                  className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/30 shadow-none focus-visible:ring-0"
                 />
                 <Button
                   type="submit"
                   disabled={!message.trim()}
                   size="icon-sm"
                   aria-label="Send command"
-                  className="size-8 cursor-pointer rounded-xl bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
+                  className="size-8 cursor-pointer rounded-lg bg-[#d99476] text-[#211e1a] shadow-none hover:bg-[#e3a58a] disabled:bg-white/[0.07] disabled:text-white/25"
                 >
                   <ArrowUp aria-hidden="true" className="size-4" />
                 </Button>
@@ -422,10 +393,26 @@ export default function Island() {
             />
           </p>
         ) : (
-          <p aria-label="Dynamic Island collapsed" className="flex h-full items-center justify-center">
-            <span aria-hidden="true" className="size-2 rounded-full bg-white" />
-          </p>
+          <div
+            aria-label="Dynamic Island collapsed"
+            className="flex h-full w-full items-center justify-center"
+            onMouseDown={(event) => {
+              if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button"))) return;
+              void getCurrentWindow().startDragging().catch(() => undefined);
+            }}
+          >
+          </div>
         )}
+        <button
+          type="button"
+          aria-label={expanded ? "Collapse Dynamic Island" : "Expand Dynamic Island"}
+          title={expanded ? "Collapse" : "Open"}
+          onClick={expanded ? collapse : () => void expand()}
+          className="absolute z-20 flex size-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-[left,top] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
+          style={{ left: expanded ? 520 : 78, top: expanded ? 8 : 6 }}
+        >
+          <span aria-hidden="true" className="size-2 rounded-full bg-white" />
+        </button>
       </section>
     </main>
   );
