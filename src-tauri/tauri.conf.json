@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "fudge",
+  "productName": "Fudge",
   "version": "0.1.0",
   "identifier": "com.fudge.dev",
   "build": {
