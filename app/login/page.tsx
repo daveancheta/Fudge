@@ -38,7 +38,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="login-shell relative flex min-h-screen flex-col overflow-hidden px-6 py-6 text-[#24221f] sm:px-10 sm:py-8 lg:px-[5.3vw]">
+    <main className="login-shell relative flex h-dvh min-h-0 touch-pan-y flex-col overflow-x-hidden px-5 py-5 text-[#24221f] sm:px-10 sm:py-8 lg:px-[5.3vw]">
       <LoginIsland />
       <div aria-hidden="true" className="login-glow login-glow-one" />
       <div aria-hidden="true" className="login-glow login-glow-two" />
