@@ -72,6 +72,8 @@ export default function Island() {
   const [mediaPlayback, setMediaPlayback] = useState<MediaPlayback | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandedRef = useRef(false);
+  const mediaPointer = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
+  const suppressMediaClick = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
   const remoteCommandHandler = useRef<(message: SyncedChatMessage) => void>(() => undefined);
   const { data: session } = authClient.useSession();
@@ -154,9 +156,9 @@ export default function Island() {
 
   const expand = async () => {
     if (timer.current) clearTimeout(timer.current);
-    await placeWindow(EXPANDED.w, EXPANDED.h);
     expandedRef.current = true;
     setExpanded(true);
+    await placeWindow(EXPANDED.w, EXPANDED.h);
   };
 
   const collapse = () => {
@@ -366,7 +368,40 @@ export default function Island() {
             </form>
           </>
         ) : mediaPlayback ? (
-          <p aria-label={`Now playing ${mediaPlayback.title} by ${mediaPlayback.artist} in ${mediaPlayback.appName}`} className="flex h-full items-center justify-between gap-2 px-3">
+          <p
+            aria-label={`Now playing ${mediaPlayback.title} by ${mediaPlayback.artist} in ${mediaPlayback.appName}`}
+            className="flex h-full cursor-pointer items-center justify-between gap-2 px-3"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              mediaPointer.current = { x: event.clientX, y: event.clientY, dragging: false };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const pointer = mediaPointer.current;
+              if (!pointer || pointer.dragging) return;
+              if (Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) < 7) return;
+              pointer.dragging = true;
+              void getCurrentWindow().startDragging().catch(() => undefined);
+            }}
+            onPointerUp={() => {
+              suppressMediaClick.current = mediaPointer.current?.dragging ?? false;
+              mediaPointer.current = null;
+              if (suppressMediaClick.current) {
+                setTimeout(() => { suppressMediaClick.current = false; }, 0);
+              }
+            }}
+            onPointerCancel={() => {
+              mediaPointer.current = null;
+              suppressMediaClick.current = true;
+            }}
+            onClick={() => {
+              if (suppressMediaClick.current) {
+                suppressMediaClick.current = false;
+                return;
+              }
+              void expand();
+            }}
+          >
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className="flex h-5 shrink-0 items-center gap-[2px]">
                 {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
@@ -382,8 +417,8 @@ export default function Island() {
                 ))}
               </span>
               <span className="flex min-w-0 flex-col text-left">
-                <span className="truncate text-[10px] font-medium text-white/90">{mediaPlayback.title}</span>
-                <span className="truncate text-[9px] text-white/45">{mediaPlayback.artist} · {mediaPlayback.appName}</span>
+                <span className="truncate text-[10px] font-medium text-white/90">{limitText(mediaPlayback.title, 14)}</span>
+                <span className="truncate text-[9px] text-white/45">{limitText(mediaPlayback.artist, 14)} · {mediaPlayback.appName}</span>
               </span>
             </span>
             <span
@@ -403,7 +438,7 @@ export default function Island() {
           >
           </div>
         )}
-        <button
+        {(!mediaPlayback || expanded) && <button
           type="button"
           aria-label={expanded ? "Collapse Dynamic Island" : "Expand Dynamic Island"}
           title={expanded ? "Collapse" : "Open"}
@@ -412,7 +447,7 @@ export default function Island() {
           style={{ left: expanded ? 520 : 78, top: expanded ? 8 : 6 }}
         >
           <span aria-hidden="true" className="size-2 rounded-full bg-white" />
-        </button>
+        </button>}
       </section>
     </main>
   );
@@ -451,4 +486,8 @@ function trackHue(value: string) {
     hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
   }
   return hash % 360;
+}
+
+function limitText(value: string, maxLength: number) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
 }

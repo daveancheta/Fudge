@@ -10,9 +10,8 @@ export default function DownloadIsland() {
   const [message, setMessage] = useState("");
   const [sentMessages, setSentMessages] = useState<string[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const dragging = useRef(false);
-  const inputFocused = useRef(false);
+  const pointerStart = useRef<{ x: number; y: number; left: number; top: number; dragging: boolean } | null>(null);
+  const suppressClick = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -20,43 +19,55 @@ export default function DownloadIsland() {
     if (expanded && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [expanded, sentMessages]);
 
-  const collapse = () => {
-    if (!inputFocused.current) setExpanded(false);
-  };
-
   return (
     <div
       aria-label="Draggable Dynamic Island preview"
-      className={`fixed z-50 touch-none ${expanded ? "cursor-default" : "cursor-grab"} select-none`}
+      className={`fixed z-50 touch-none ${expanded ? "cursor-default" : "cursor-pointer"} select-none`}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if (event.target instanceof Element && event.target.closest("input, button")) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        dragOffset.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        dragging.current = true;
-        event.currentTarget.classList.add("cursor-grabbing");
+        pointerStart.current = {
+          x: event.clientX,
+          y: event.clientY,
+          left: rect.left,
+          top: rect.top,
+          dragging: false,
+        };
         event.currentTarget.setPointerCapture(event.pointerId);
         setPosition({ left: rect.left, top: rect.top });
       }}
       onPointerMove={(event) => {
-        if (!dragging.current) return;
+        const start = pointerStart.current;
+        if (!start) return;
+        if (!start.dragging) {
+          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 7) return;
+          start.dragging = true;
+        }
         const width = event.currentTarget.offsetWidth;
         const height = event.currentTarget.offsetHeight;
         setPosition({
-          left: Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX - dragOffset.current.x)),
-          top: Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY - dragOffset.current.y)),
+          left: Math.max(8, Math.min(window.innerWidth - width - 8, start.left + event.clientX - start.x)),
+          top: Math.max(8, Math.min(window.innerHeight - height - 8, start.top + event.clientY - start.y)),
         });
       }}
-      onPointerUp={(event) => {
-        dragging.current = false;
-        event.currentTarget.classList.remove("cursor-grabbing");
+      onPointerUp={() => {
+        suppressClick.current = pointerStart.current?.dragging ?? false;
+        pointerStart.current = null;
+        if (suppressClick.current) setTimeout(() => { suppressClick.current = false; }, 0);
       }}
-      onPointerCancel={(event) => {
-        dragging.current = false;
-        event.currentTarget.classList.remove("cursor-grabbing");
+      onPointerCancel={() => {
+        pointerStart.current = null;
+        suppressClick.current = true;
+        setTimeout(() => { suppressClick.current = false; }, 0);
       }}
-      onMouseEnter={() => { if (!dragging.current) setExpanded(true); }}
-      onMouseLeave={collapse}
+      onClick={() => {
+        if (expanded || suppressClick.current) {
+          suppressClick.current = false;
+          return;
+        }
+        setExpanded(true);
+      }}
       style={{
         left: position?.left ?? "50%",
         top: position?.top ?? 10,
@@ -77,11 +88,14 @@ export default function DownloadIsland() {
       />
       <div
         aria-label="Dynamic Island"
-        className="flex flex-col overflow-hidden border border-white/10 bg-black text-white shadow-[0_16px_50px_rgba(30,25,19,.25)] transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(.32,.72,0,1)]"
+        className="relative flex flex-col overflow-hidden border border-white/[0.11] bg-[#171615] text-white shadow-[0_16px_50px_rgba(30,25,19,.25)]"
         style={{
           width: expanded ? "min(560px, calc(100vw - 24px))" : 250,
           height: expanded ? "min(360px, calc(100dvh - 24px))" : 44,
           borderRadius: expanded ? 32 : 9999,
+          transition: expanded
+            ? "width 280ms cubic-bezier(0.32,0.72,0,1), height 320ms 280ms cubic-bezier(0.32,0.72,0,1), border-radius 500ms cubic-bezier(0.32,0.72,0,1)"
+            : "height 280ms cubic-bezier(0.32,0.72,0,1), width 320ms 280ms cubic-bezier(0.32,0.72,0,1), border-radius 500ms cubic-bezier(0.32,0.72,0,1)",
         }}
       >
         {expanded ? (
@@ -141,8 +155,6 @@ export default function DownloadIsland() {
                   aria-label="Chat message"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
-                  onFocus={() => { inputFocused.current = true; }}
-                  onBlur={() => { inputFocused.current = false; }}
                   placeholder="Ask Fudge or try ‘open Chrome’..."
                   className="h-8 min-w-0 flex-1 bg-transparent px-0 text-[11px] text-white outline-none placeholder:text-white/35"
                 />
@@ -174,6 +186,19 @@ export default function DownloadIsland() {
             <span aria-hidden="true" className="size-8 shrink-0 rounded-full border border-white/10 bg-cover bg-center" style={{ backgroundImage: "url('/alex_crichton.jpg')" }} />
           </p>
         )}
+        {expanded && <button
+          type="button"
+          aria-label={expanded ? "Collapse Dynamic Island" : "Expand Dynamic Island"}
+          title={expanded ? "Collapse" : "Open"}
+          onClick={() => setExpanded((current) => !current)}
+          className="absolute z-20 flex size-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-[left,top] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
+          style={{
+            left: expanded ? "calc(min(560px, 100vw - 24px) - 36px)" : 112,
+            top: expanded ? 8 : 10,
+          }}
+        >
+          <span aria-hidden="true" className="size-2 rounded-full bg-white" />
+        </button>}
       </div>
     </div>
   );
