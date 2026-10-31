@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { appFetch } from "@/lib/app-fetch";
 import { DEFAULT_FUDGE_SETTINGS, type FudgeSettings } from "@/lib/fudge-settings";
 import { supabase } from "@/lib/supabase";
 
@@ -12,7 +13,7 @@ export function useFudgeSettings(userId: string | undefined) {
   const refresh = useCallback(async () => {
     if (!userId) return null;
     try {
-      const response = await fetch("/api/settings", { cache: "no-store" });
+      const response = await appFetch("/api/settings", { cache: "no-store" });
       if (!response.ok) throw new Error((await response.json()).error || "Could not load settings.");
       const result = (await response.json()) as { settings: FudgeSettings; realtimeTopic: string };
       setSettings({ ...DEFAULT_FUDGE_SETTINGS, ...result.settings });
@@ -68,7 +69,7 @@ export function useFudgeSettings(userId: string | undefined) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        const response = await fetch("/api/settings", {
+      const response = await appFetch("/api/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(next),

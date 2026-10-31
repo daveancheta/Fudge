@@ -4,14 +4,14 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { ArrowUp, AudioLines, Sparkles } from "lucide-react";
+import { useSyncedChat } from "@/lib/use-synced-chat";
 
 const authClient = createAuthClient();
-type ChatMessage = { role: "user" | "assistant"; text: string };
 
 export default function WebChatPage() {
   const { data: session, isPending } = authClient.useSession();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { messages, addMessage } = useSyncedChat(session?.user.id);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +23,8 @@ export default function WebChatPage() {
     event.preventDefault();
     const text = input.trim();
     if (!text) return;
-    setMessages((items) => [...items, { role: "user", text }, { role: "assistant", text: replyTo(text) }]);
+    addMessage(text, "user");
+    addMessage(replyTo(text), "assistant");
     setInput("");
   };
 
@@ -49,7 +50,7 @@ export default function WebChatPage() {
         <div className="mt-7 flex flex-wrap justify-center gap-2 text-xs text-white/55">
           {["What can Fudge do?", "Open Fudge settings", "How do I change the music wave?"].map((suggestion) => <button key={suggestion} onClick={() => setInput(suggestion)} className="cursor-pointer rounded-full border border-white/10 px-3 py-2 transition hover:border-white/20 hover:bg-white/[0.04]">{suggestion}</button>)}
         </div>
-      </div> : <ol aria-live="polite" className="mx-auto flex w-full max-w-2xl flex-col gap-4">{messages.map((message, i) => <li key={i} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "self-end bg-white text-black" : "self-start border border-white/10 bg-white/[0.04] text-white/80"}`}>{message.text}</li>)}</ol>}
+      </div> : <ol aria-live="polite" className="mx-auto flex w-full max-w-2xl flex-col gap-4">{messages.map((message) => <li key={message.id} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.from === "user" ? "self-end bg-white text-black" : "self-start border border-white/10 bg-white/[0.04] text-white/80"}`}>{message.text}</li>)}</ol>}
     </div>
     <form onSubmit={send} className="mb-8 rounded-2xl border border-white/10 bg-white/[0.035] p-2 shadow-[0_12px_50px_rgba(0,0,0,.2)]">
       <textarea aria-label="Message Fudge" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Message Fudge…" rows={2} className="max-h-40 min-h-14 w-full resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-white/30" />

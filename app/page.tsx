@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
 import { createAuthClient } from "better-auth/react";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
+import { useSyncedChat } from "@/lib/use-synced-chat";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
@@ -53,7 +54,6 @@ const authClient = createAuthClient();
 export default function Island() {
   const [expanded, setExpanded] = useState(false);
   const [message, setMessage] = useState("");
-  const [sentMessages, setSentMessages] = useState<{ text: string; from: "user" | "assistant" }[]>([]);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [spotifyPlayback, setSpotifyPlayback] = useState<SpotifyPlayback | null>(null);
   const [waveColor, setWaveColor] = useState("#ff637d");
@@ -63,6 +63,7 @@ export default function Island() {
   const chatListRef = useRef<HTMLOListElement>(null);
   const { data: session } = authClient.useSession();
   const { settings } = useFudgeSettings(session?.user.id);
+  const { messages: sentMessages, addMessage } = useSyncedChat(session?.user.id);
 
   useEffect(() => {
     const list = chatListRef.current;
@@ -165,15 +166,15 @@ export default function Island() {
     event.preventDefault();
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
-    setSentMessages((messages) => [...messages, { text: trimmedMessage, from: "user" }]);
+    addMessage(trimmedMessage, "user");
     setMessage("");
 
     if (/^(?:please\s+)?(?:open|show|launch)\s+fudge\s+settings[.!?]*$/i.test(trimmedMessage)) {
       try {
         await invoke("open_settings");
-        setSentMessages((messages) => [...messages, { text: "Opening Fudge settings.", from: "assistant" }]);
+        addMessage("Opening Fudge settings.", "assistant");
       } catch (error) {
-        setSentMessages((messages) => [...messages, { text: String(error), from: "assistant" }]);
+        addMessage(String(error), "assistant");
       }
       return;
     }
@@ -184,7 +185,7 @@ export default function Island() {
       const response = appNames.length
         ? `I can open: ${appNames.join(", ")}${installedApps.length > appNames.length ? ", and more" : ""}.`
         : "I couldn't load the installed app list. Try restarting the island.";
-      setSentMessages((messages) => [...messages, { text: response, from: "assistant" }]);
+      addMessage(response, "assistant");
       return;
     }
 
@@ -201,27 +202,21 @@ export default function Island() {
     if (closeCommand) {
       const matches = findInstalledApps(closeCommand[1]);
       if (!matches.length) {
-        setSentMessages((messages) => [...messages, {
-          text: installedApps.length
+        addMessage(installedApps.length
             ? `I couldn't find an installed app named "${closeCommand[1]}". Try "what apps can you open?".`
-            : "I couldn't load the installed app list. Try restarting the island.",
-          from: "assistant",
-        }]);
+            : "I couldn't load the installed app list. Try restarting the island.", "assistant");
         return;
       }
       if (matches.length > 1) {
-        setSentMessages((messages) => [...messages, {
-          text: `I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`,
-          from: "assistant",
-        }]);
+        addMessage(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, "assistant");
         return;
       }
 
       try {
         const response = await invoke<string>("close_installed_app", { appId: matches[0].id });
-        setSentMessages((messages) => [...messages, { text: response, from: "assistant" }]);
+        addMessage(response, "assistant");
       } catch (error) {
-        setSentMessages((messages) => [...messages, { text: String(error), from: "assistant" }]);
+        addMessage(String(error), "assistant");
       }
       return;
     }
@@ -232,27 +227,21 @@ export default function Island() {
     const matches = findInstalledApps(command[1]);
 
     if (!matches.length) {
-      setSentMessages((messages) => [...messages, {
-        text: installedApps.length
+      addMessage(installedApps.length
           ? `I couldn't find an installed app named "${command[1]}". Try "what apps can you open?".`
-          : "I couldn't load the installed app list. Try restarting the island.",
-        from: "assistant",
-      }]);
+          : "I couldn't load the installed app list. Try restarting the island.", "assistant");
       return;
     }
     if (matches.length > 1) {
-      setSentMessages((messages) => [...messages, {
-        text: `I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`,
-        from: "assistant",
-      }]);
+      addMessage(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, "assistant");
       return;
     }
 
     try {
       const response = await invoke<string>("launch_installed_app", { appId: matches[0].id });
-      setSentMessages((messages) => [...messages, { text: response, from: "assistant" }]);
+      addMessage(response, "assistant");
     } catch (error) {
-      setSentMessages((messages) => [...messages, { text: String(error), from: "assistant" }]);
+      addMessage(String(error), "assistant");
     }
   };
 

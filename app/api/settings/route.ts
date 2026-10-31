@@ -4,7 +4,7 @@ import { db } from "@/index";
 import { userSettings } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { getSettingsRealtimeTopic } from "@/lib/settings-realtime";
+import { getUserRealtimeTopic } from "@/lib/settings-realtime";
 import { DEFAULT_FUDGE_SETTINGS, type FudgeSettings } from "@/lib/fudge-settings";
 
 export const runtime = "nodejs";
@@ -36,7 +36,7 @@ export async function GET() {
 
     return Response.json({
       settings: data ?? DEFAULT_FUDGE_SETTINGS,
-      realtimeTopic: getSettingsRealtimeTopic(userId),
+      realtimeTopic: getUserRealtimeTopic(userId, "settings"),
     });
   } catch (error) {
     console.error("Could not load settings", error);
@@ -72,7 +72,7 @@ export async function PUT(request: Request) {
       },
     });
 
-    const topic = getSettingsRealtimeTopic(userId);
+    const topic = getUserRealtimeTopic(userId, "settings");
     try {
       const broadcastResult = await supabase
         .channel(topic, { config: { private: false } })
