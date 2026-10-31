@@ -245,10 +245,10 @@ export default function Island() {
             <header className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-4 py-3">
               <div className="flex items-center gap-2.5">
                 <div className="relative z-10 flex items-center justify-between">
-          <span className="grid size-9 place-items-center rounded-[13px] bg-white text-[#25231f] shadow-[0_5px_15px_rgba(44,37,27,.13)] transition-transform group-hover:-rotate-6">
-            <AudioLines className="size-[17px]" strokeWidth={2.2} />
-          </span>
-      </div>
+                  <span className="grid size-9 place-items-center rounded-[13px] bg-white text-[#25231f] shadow-[0_5px_15px_rgba(44,37,27,.13)] transition-transform group-hover:-rotate-6">
+                    <AudioLines className="size-[17px]" strokeWidth={2.2} />
+                  </span>
+                </div>
                 <span className="flex flex-col">
                   <span className="text-xs font-semibold tracking-wide text-white/95">Fudge assistant</span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-white/40">
@@ -283,7 +283,7 @@ export default function Island() {
                   ))}
                 </span>
               </p>
-            )} 
+            )}
 
             <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
@@ -306,27 +306,27 @@ export default function Island() {
 
             <form onSubmit={sendMessage} className="shrink-0 border-t border-white/[0.08] bg-white/[0.015] px-3 pb-3 pt-2.5">
               <div className="flex items-center gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.045] p-1.5 pl-3 focus-within:border-white/20 focus-within:bg-white/[0.06]">
-              <Input
-                aria-label="Chat message"
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onFocus={() => {
-                  messageInputFocused.current = true;
-                  if (timer.current) clearTimeout(timer.current);
-                }}
-                onBlur={() => { messageInputFocused.current = false; }}
-                placeholder="Ask Fudge or try ‘open Chrome’..."
-                className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
-              />
-              <Button
-                type="submit"
-                disabled={!message.trim()}
-                size="icon-sm"
-                aria-label="Send command"
-                className="size-8 cursor-pointer rounded-xl bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
-              >
-                <ArrowUp aria-hidden="true" className="size-4" />
-              </Button>
+                <Input
+                  aria-label="Chat message"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onFocus={() => {
+                    messageInputFocused.current = true;
+                    if (timer.current) clearTimeout(timer.current);
+                  }}
+                  onBlur={() => { messageInputFocused.current = false; }}
+                  placeholder="Ask Fudge or try ‘open Chrome’..."
+                  className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
+                />
+                <Button
+                  type="submit"
+                  disabled={!message.trim()}
+                  size="icon-sm"
+                  aria-label="Send command"
+                  className="size-8 cursor-pointer rounded-xl bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
+                >
+                  <ArrowUp aria-hidden="true" className="size-4" />
+                </Button>
               </div>
               <p className="mt-2 text-center text-[9px] text-white/25">Try “open [app name]” · “what apps can you open?”</p>
             </form>
