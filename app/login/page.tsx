@@ -27,7 +27,7 @@ export default function LoginPage() {
     try {
       const { error: authError } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/web/chat",
       });
       if (authError) setError(authError.message || "Google sign-in couldn’t start. Please try again.");
     } catch (cause) {
