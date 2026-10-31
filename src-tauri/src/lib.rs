@@ -1,6 +1,16 @@
 use std::process::Command;
 use tauri::Manager;
 
+#[cfg(target_os = "windows")]
+fn hidden_powershell() -> Command {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let mut command = Command::new("powershell");
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct InstalledApp {
@@ -132,7 +142,7 @@ fn get_spotify_playback() -> Result<Option<SpotifyPlayback>, String> {
 fn list_installed_apps() -> Result<Vec<InstalledApp>, String> {
     #[cfg(target_os = "windows")]
     {
-        let output = Command::new("powershell")
+        let output = hidden_powershell()
       .args([
         "-NoProfile",
         "-Command",
@@ -226,7 +236,7 @@ Write-Output ("Close request sent to {{0}}." -f ($closed -join ', '))
                 .collect::<Vec<_>>(),
         );
 
-        let output = Command::new("powershell")
+        let output = hidden_powershell()
             .args([
                 "-NoProfile",
                 "-NonInteractive",
