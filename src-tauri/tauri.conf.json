@@ -29,6 +29,7 @@
     }
   },
   "bundle": {
+    "publisher": "Heaven Dave Ancheta",
     "active": true,
     "targets": "all",
     "icon": [
