@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/index";
 import { userSettings } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { apiCorsOptions, withApiCors } from "@/lib/api-cors";
 import { supabase } from "@/lib/supabase";
 import { getUserRealtimeTopic } from "@/lib/settings-realtime";
 import { DEFAULT_FUDGE_SETTINGS, type FudgeSettings } from "@/lib/fudge-settings";
@@ -23,7 +24,7 @@ function validSettings(value: unknown): value is FudgeSettings {
     && typeof candidate.animateWave === "boolean";
 }
 
-export async function GET() {
+const getSettings = async () => {
   const userId = await currentUserId();
   if (!userId) return Response.json({ error: "Sign in to load your settings." }, { status: 401 });
 
@@ -42,9 +43,9 @@ export async function GET() {
     console.error("Could not load settings", error);
     return Response.json({ error: "Could not load settings from the database." }, { status: 503 });
   }
-}
+};
 
-export async function PUT(request: Request) {
+const putSettings = async (request: Request) => {
   const userId = await currentUserId();
   if (!userId) return Response.json({ error: "Sign in to save your settings." }, { status: 401 });
 
@@ -87,4 +88,10 @@ export async function PUT(request: Request) {
     console.error("Could not save settings", error);
     return Response.json({ error: "Could not save settings to the database." }, { status: 503 });
   }
+};
+
+export const GET = withApiCors(getSettings);
+export const PUT = withApiCors(putSettings);
+export function OPTIONS(request: Request) {
+  return apiCorsOptions(request);
 }

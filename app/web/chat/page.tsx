@@ -2,12 +2,10 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { ArrowDown, ArrowUp, AudioLines, CircleUserRound, Command, Sparkles } from "lucide-react";
 import { useSyncedChat } from "@/lib/use-synced-chat";
 import { isDesktopCommand } from "@/lib/chat-commands";
-
-const authClient = createAuthClient();
 
 export default function WebChatPage() {
   const { data: session, isPending } = authClient.useSession();

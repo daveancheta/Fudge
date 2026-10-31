@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { MonitorSmartphone } from "lucide-react";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
-const authClient = createAuthClient();
-
 export default function SettingsPage() {
   const [accountMessage, setAccountMessage] = useState("");
   const [signingIn, setSigningIn] = useState(false);

@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { ArrowUpRight, AudioLines } from "lucide-react";
-
-const authClient = createAuthClient();
 
 function GoogleMark() {
   return (

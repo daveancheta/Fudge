@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
 import { useSyncedChat, type SyncedChatMessage } from "@/lib/use-synced-chat";
 import { redirect } from "next/navigation";
@@ -49,8 +49,6 @@ async function placeWindow(w: number, h: number) {
   await win.setSize(new LogicalSize(w, h));
   await win.setPosition(new LogicalPosition(x, y));
 }
-
-const authClient = createAuthClient();
 
 if (process.env.SYSTEM === "website") {
   redirect("/download")

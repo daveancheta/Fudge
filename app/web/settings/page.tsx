@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { Check, MonitorSmartphone, Moon, Sun, Laptop } from "lucide-react";
 import { setWebTheme, WEB_THEME_KEY, type WebTheme } from "../theme-provider";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
-
-const authClient = createAuthClient();
 
 export default function WebSettingsPage() {
   const { data: session, isPending } = authClient.useSession();

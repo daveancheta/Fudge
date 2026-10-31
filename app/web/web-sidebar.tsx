@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { AudioLines, ChevronRight, LogOut, MessageCircle, Moon, Settings2, Sun, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { setWebTheme, WEB_THEME_KEY } from "./theme-provider";
-
-const authClient = createAuthClient();
 
 export default function WebSidebar() {
   const pathname = usePathname();

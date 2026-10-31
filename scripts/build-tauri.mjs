@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // Tauri ships a static frontend. Its API requests use NEXT_PUBLIC_REMOTE_API_URL,
@@ -39,6 +39,18 @@ try {
   });
 
   exitCode = result.status ?? 1;
+  if (exitCode === 0) {
+    // Installer downloads belong to the website and must not be embedded in
+    // the desktop app that produced them.
+    const staticDownloads = resolve("out", "downloads");
+    if (existsSync(staticDownloads)) {
+      for (const filename of readdirSync(staticDownloads)) {
+        if (/\.(exe|msi)$/i.test(filename)) {
+          rmSync(join(staticDownloads, filename), { force: true });
+        }
+      }
+    }
+  }
 } finally {
   for (const [path, source] of originalRoutes) writeFileSync(path, source);
 }

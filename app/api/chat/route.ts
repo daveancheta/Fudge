@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { db } from "@/index";
 import { chatMessages } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { apiCorsOptions, withApiCors } from "@/lib/api-cors";
 import { supabase } from "@/lib/supabase";
 import { getUserRealtimeTopic } from "@/lib/settings-realtime";
 
@@ -39,7 +40,7 @@ function isMessage(value: unknown): value is ChatMessage {
     && Number.isFinite(Date.parse(message.createdAt));
 }
 
-export async function GET() {
+const getChat = async () => {
   const userId = await currentUserId();
   if (!userId) return Response.json({ error: "Sign in to load chat history." }, { status: 401 });
 
@@ -55,9 +56,9 @@ export async function GET() {
     console.error("Could not load chat history", error);
     return Response.json({ error: "Could not load chat history." }, { status: 503 });
   }
-}
+};
 
-export async function POST(request: Request) {
+const postChat = async (request: Request) => {
   const userId = await currentUserId();
   if (!userId) return Response.json({ error: "Sign in to sync chat history." }, { status: 401 });
 
@@ -106,4 +107,10 @@ export async function POST(request: Request) {
     console.error("Could not sync chat history", error);
     return Response.json({ error: "Could not sync chat history." }, { status: 503 });
   }
+};
+
+export const GET = withApiCors(getChat);
+export const POST = withApiCors(postChat);
+export function OPTIONS(request: Request) {
+  return apiCorsOptions(request);
 }
