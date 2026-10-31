@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AudioLines } from 'lucide-react';
+import { ArrowUp, AudioLines, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 
 export default function DownloadIsland() {
   const [expanded, setExpanded] = useState(false);
@@ -121,11 +121,35 @@ export default function DownloadIsland() {
                 <span className="truncate text-[11px] font-medium text-white/90">What If I Call (Merry Christmas, i miss you)</span>
                 <span className="truncate text-[10px] text-white/50">Alex Crichton</span>
               </span>
-              <span aria-hidden="true" className="ml-auto flex h-5 shrink-0 items-center gap-[2px] px-1">
+              <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                <span className="flex items-center gap-0.5">
+                <button type="button" aria-label="Previous track" title="Previous track" disabled className="grid size-6 place-items-center rounded-md text-white/25 disabled:cursor-default">
+                  <SkipBack aria-hidden="true" className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={isPlaying ? "Pause playback" : "Resume playback"}
+                  title={isPlaying ? "Pause" : "Play"}
+                  onClick={() => {
+                    const audio = audioRef.current;
+                    if (!audio) return;
+                    if (audio.paused) void audio.play().catch(() => setIsPlaying(false));
+                    else audio.pause();
+                  }}
+                  className="grid size-6 place-items-center rounded-md text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  {isPlaying ? <Pause aria-hidden="true" className="size-3" /> : <Play aria-hidden="true" className="size-3" />}
+                </button>
+                <button type="button" aria-label="Next track" title="Next track" disabled className="grid size-6 place-items-center rounded-md text-white/25 disabled:cursor-default">
+                  <SkipForward aria-hidden="true" className="size-3" />
+                </button>
+                </span>
+                <span aria-hidden="true" className="flex h-5 shrink-0 items-center gap-[2px] px-1">
                 {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
                   <span key={index} className={`${isPlaying ? "music-bar" : "music-bar-still"} w-[3px] rounded-full bg-[#ff637d] ${height}`} style={{ animationDelay: `${index * 90}ms`, animationDuration: `${560 + (index % 3) * 130}ms` }} />
                 ))}
-              </span>
+                </span>
+              </div>
             </p>
             <ol ref={chatListRef} aria-live="polite" className="flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs scrollable-div">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
