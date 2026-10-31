@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { GlassQuality } from "../lib/glass/types";
+import type { GlassQuality } from "../lib/types";
 
 function detectQuality(): GlassQuality {
   if (
