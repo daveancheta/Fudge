@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createAuthClient } from "better-auth/react";
 import { ArrowUp, ArrowUpRight, AudioLines, Sparkles } from "lucide-react";
 
@@ -151,6 +151,12 @@ function LoginIsland() {
   const dragOffset = useRef({ x: 0, y: 0 });
   const dragging = useRef(false);
   const inputFocused = useRef(false);
+  const chatListRef = useRef<HTMLOListElement>(null);
+
+  useEffect(() => {
+    const list = chatListRef.current;
+    if (expanded && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  }, [expanded, sentMessages]);
 
   const collapse = () => {
     if (!inputFocused.current) setExpanded(false);
@@ -245,7 +251,7 @@ function LoginIsland() {
                 ))}
               </span>
             </p>
-            <ol aria-live="polite" className="flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs scrollable-div">
+            <ol ref={chatListRef} aria-live="polite" className="flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs scrollable-div">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
                 <div className="rounded-2xl rounded-bl-md border border-white/[0.07] bg-white/[0.055] px-3.5 py-2.5 text-[11px] leading-[1.65] text-white/65">
                   <p className="mb-1 font-medium text-white/90">Hey, I’m Fudge.</p>

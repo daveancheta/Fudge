@@ -60,8 +60,14 @@ export default function Island() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageInputFocused = useRef(false);
   const expandedRef = useRef(false);
+  const chatListRef = useRef<HTMLOListElement>(null);
   const { data: session } = authClient.useSession();
   const { settings } = useFudgeSettings(session?.user.id);
+
+  useEffect(() => {
+    const list = chatListRef.current;
+    if (expanded && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  }, [expanded, sentMessages]);
 
 
   useEffect(() => {
@@ -182,14 +188,48 @@ export default function Island() {
       return;
     }
 
+    const normalize = (name: string) => name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    const findInstalledApps = (name: string) => {
+      const requestedName = normalize(name);
+      const exactMatches = installedApps.filter((app) => normalize(app.name) === requestedName);
+      return exactMatches.length
+        ? exactMatches
+        : installedApps.filter((app) => normalize(app.name).includes(requestedName));
+    };
+
+    const closeCommand = trimmedMessage.match(/^(?:please\s+)?(?:close|quit|exit|stop)\s+(?:the\s+)?(.+?)[.!?]*$/i);
+    if (closeCommand) {
+      const matches = findInstalledApps(closeCommand[1]);
+      if (!matches.length) {
+        setSentMessages((messages) => [...messages, {
+          text: installedApps.length
+            ? `I couldn't find an installed app named "${closeCommand[1]}". Try "what apps can you open?".`
+            : "I couldn't load the installed app list. Try restarting the island.",
+          from: "assistant",
+        }]);
+        return;
+      }
+      if (matches.length > 1) {
+        setSentMessages((messages) => [...messages, {
+          text: `I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`,
+          from: "assistant",
+        }]);
+        return;
+      }
+
+      try {
+        const response = await invoke<string>("close_installed_app", { appId: matches[0].id });
+        setSentMessages((messages) => [...messages, { text: response, from: "assistant" }]);
+      } catch (error) {
+        setSentMessages((messages) => [...messages, { text: String(error), from: "assistant" }]);
+      }
+      return;
+    }
+
     const command = trimmedMessage.match(/^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)[.!?]*$/i);
     if (!command) return;
 
-    const normalize = (name: string) => name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-    const requestedName = normalize(command[1]);
-    const exactMatches = installedApps.filter((app) => normalize(app.name) === requestedName);
-    const partialMatches = installedApps.filter((app) => normalize(app.name).includes(requestedName));
-    const matches = exactMatches.length ? exactMatches : partialMatches;
+    const matches = findInstalledApps(command[1]);
 
     if (!matches.length) {
       setSentMessages((messages) => [...messages, {
@@ -277,11 +317,11 @@ export default function Island() {
               </p>
             )}
 
-            <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs">
+            <ol ref={chatListRef} aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
                 <div className="rounded-2xl rounded-bl-md border border-white/[0.07] bg-white/[0.055] px-3.5 py-2.5 text-[11px] leading-[1.65] text-white/65">
                   <p className="mb-1 font-medium text-white/90">Hey, I’m Fudge.</p>
-                  I can open apps on your computer. Try <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">“open Chrome”</span> or ask what I can open.
+                  I can open or close apps on your computer. Try <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;open Chrome&quot;</span> or <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;close Chrome&quot;</span>.
                 </div>
               </li>
               {sentMessages.map((sentMessage, index) => (
@@ -307,7 +347,7 @@ export default function Island() {
                     if (timer.current) clearTimeout(timer.current);
                   }}
                   onBlur={() => { messageInputFocused.current = false; }}
-                  placeholder="Ask Fudge or try ‘open Chrome’..."
+                  placeholder="Ask Fudge or try ‘close Chrome’..."
                   className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
                 />
                 <Button

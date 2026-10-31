@@ -186,6 +186,73 @@ fn launch_installed_app(app_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn close_installed_app(app_id: String) -> Result<String, String> {
+    let app = list_installed_apps()?
+        .into_iter()
+        .find(|app| app.id == app_id)
+        .ok_or_else(|| "That app is not in the installed app list.".to_owned())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let encoded_name = encode_base64(app.name.as_bytes());
+        let script = format!(
+            r#"
+$appName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded_name}'))
+function Normalize([string]$value) {{ [regex]::Replace($value.ToLowerInvariant(), '[^\p{{L}}\p{{N}}]', '') }}
+$target = Normalize $appName
+$terms = [regex]::Split($appName, '[^\p{{L}}\p{{N}}]+') | Where-Object {{ (Normalize $_).Length -ge 4 }}
+$processes = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {{
+    if ($_.MainWindowHandle -eq 0) {{ return $false }}
+    $procName = Normalize $_.ProcessName
+    $title = Normalize $_.MainWindowTitle
+    $candidate = $procName -eq $target -or ($procName.Length -ge 4 -and $target.Contains($procName)) -or ($target.Length -ge 4 -and $procName.Contains($target)) -or ($target.Length -ge 4 -and $title.Contains($target))
+    foreach ($term in $terms) {{
+        $token = Normalize $term
+        if ($procName.Contains($token) -or $title.Contains($token)) {{ $candidate = $true }}
+    }}
+    return $candidate
+}})
+if ($processes.Count -eq 0) {{ Write-Error 'No open window matched this app.'; exit 2 }}
+$closed = @()
+foreach ($process in $processes) {{ if ($process.CloseMainWindow()) {{ $closed += $process.ProcessName }} }}
+if ($closed.Count -eq 0) {{ Write-Error 'Windows could not close a matching app window.'; exit 3 }}
+Write-Output ("Close request sent to {{0}}." -f ($closed -join ', '))
+"#
+        );
+        let encoded_script = encode_base64(
+            &script
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<_>>(),
+        );
+
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-EncodedCommand",
+                &encoded_script,
+            ])
+            .output()
+            .map_err(|error| format!("Could not request {} to close: {error}", app.name))?;
+        if !output.status.success() {
+            let detail = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+            return Err(if detail.is_empty() {
+                format!("I couldn't find {} running with an open window.", app.name)
+            } else {
+                detail
+            });
+        }
+        return Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Closing installed apps is currently available on Windows.".into())
+    }
+}
+
+#[tauri::command]
 async fn open_settings(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("settings") {
         window.show().map_err(|error| error.to_string())?;
@@ -241,7 +308,10 @@ pub fn run() {
                 // Enable autostart
                 let _ = autostart_manager.enable();
                 // Check enable state
-                println!("registered for autostart? {}", autostart_manager.is_enabled().unwrap());
+                println!(
+                    "registered for autostart? {}",
+                    autostart_manager.is_enabled().unwrap()
+                );
                 // Disable autostart
                 let _ = autostart_manager.disable();
             }
@@ -250,9 +320,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_installed_apps,
             launch_installed_app,
+            close_installed_app,
             get_spotify_playback,
             open_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
-        }
+}

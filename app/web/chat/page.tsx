@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { ArrowUp, AudioLines, Sparkles } from "lucide-react";
@@ -12,6 +12,12 @@ export default function WebChatPage() {
   const { data: session, isPending } = authClient.useSession();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   const send = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,7 +40,7 @@ export default function WebChatPage() {
       <div><p className="text-xs text-white/40">FUDGE WORKSPACE</p><h1 className="mt-1 text-xl font-semibold tracking-tight">Chat</h1></div>
       <div className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/55"><span className="size-1.5 rounded-full bg-emerald-400" /> Signed in as {session.user.name || session.user.email}</div>
     </header>
-    <div className="flex flex-1 flex-col justify-center py-10">
+    <div ref={chatContainerRef} className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-10">
       {messages.length === 0 ? <div className="mx-auto max-w-xl text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#ff637d]/10 text-[#ff8295]">            <AudioLines className="size-[17px]" strokeWidth={2.2} />
         </span>
