@@ -9,7 +9,7 @@ import {
 } from "@tauri-apps/api/window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUp, AudioLines, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { ArrowUp, AudioLines, ChevronDown, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
 import { useSyncedChat, type SyncedChatMessage } from "@/lib/use-synced-chat";
@@ -71,7 +71,6 @@ export default function Island() {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [mediaPlayback, setMediaPlayback] = useState<MediaPlayback | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const messageInputFocused = useRef(false);
   const expandedRef = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
   const remoteCommandHandler = useRef<(message: SyncedChatMessage) => void>(() => undefined);
@@ -161,7 +160,6 @@ export default function Island() {
   };
 
   const collapse = () => {
-    if (messageInputFocused.current) return;
     setExpanded(false);
     timer.current = setTimeout(() => {
       expandedRef.current = false;
@@ -257,12 +255,25 @@ export default function Island() {
   };
 
   return (
-    <main className="flex h-screen w-screen justify-center" onMouseEnter={expand} onMouseLeave={collapse}>
+    <main className="flex h-screen w-screen justify-center">
       <section
-        aria-label="Dynamic Island"
-        className="flex shrink-0 cursor-move flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        aria-label={expanded ? "Dynamic Island" : "Expand Dynamic Island"}
+        role={expanded ? "region" : "button"}
+        tabIndex={expanded ? undefined : 0}
+        className={`flex shrink-0 flex-col overflow-hidden border border-white/10 bg-black text-white transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${expanded ? "cursor-move" : "cursor-pointer"}`}
+        onClick={(event) => {
+          if (expanded || (event.target instanceof Element && event.target.closest("button, input"))) return;
+          void expand();
+        }}
+        onKeyDown={(event) => {
+          if (!expanded && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            void expand();
+          }
+        }}
         onMouseDown={(event) => {
           if (event.button !== 0) return;
+          if (!expanded) return;
           if (event.target instanceof Element && event.target.closest("input, button")) return;
           void getCurrentWindow().startDragging().catch(() => undefined);
         }}
@@ -288,6 +299,17 @@ export default function Island() {
                   </span>
                 </span>
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Collapse Dynamic Island"
+                title="Collapse"
+                onClick={collapse}
+                className="size-8 rounded-lg text-white/45 hover:bg-white/[0.07] hover:text-white/80"
+              >
+                <ChevronDown aria-hidden="true" className="size-4" />
+              </Button>
             </header>
 
             {mediaPlayback && (
@@ -353,11 +375,9 @@ export default function Island() {
                   aria-label="Chat message"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
-                  onFocus={() => {
-                    messageInputFocused.current = true;
-                    if (timer.current) clearTimeout(timer.current);
-                  }}
-                  onBlur={() => { messageInputFocused.current = false; }}
+                    onFocus={() => {
+                      if (timer.current) clearTimeout(timer.current);
+                    }}
                   placeholder="Ask Fudge or try ‘close Chrome’..."
                   className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
                 />
