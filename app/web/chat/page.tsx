@@ -13,7 +13,7 @@ export default function WebChatPage() {
   const { data: session, isPending } = authClient.useSession();
   const [input, setInput] = useState("");
   const [showLatestButton, setShowLatestButton] = useState(false);
-  const { messages, addMessage } = useSyncedChat(session?.user.id);
+  const { messages, addMessage } = useSyncedChat(session?.user?.id);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const keepLatestInView = useRef(true);
 

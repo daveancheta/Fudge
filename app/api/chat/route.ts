@@ -12,7 +12,7 @@ type ChatMessage = { id: string; from: "user" | "assistant"; source: "web" | "is
 
 async function currentUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user.id;
+  return session?.user?.id;
 }
 
 function toMessage(row: typeof chatMessages.$inferSelect): ChatMessage {

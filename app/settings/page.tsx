@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const { data: session, isPending: sessionPending } = authClient.useSession();
-  const { settings, saveSettings, settingsError } = useFudgeSettings(session?.user.id);
+  const { settings, saveSettings, settingsError } = useFudgeSettings(session?.user?.id);
 
   const signIn = async () => {
     setAccountMessage("");

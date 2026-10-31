@@ -11,7 +11,7 @@ const authClient = createAuthClient();
 
 export default function WebSettingsPage() {
   const { data: session, isPending } = authClient.useSession();
-  const { settings, saveSettings, settingsError } = useFudgeSettings(session?.user.id);
+  const { settings, saveSettings, settingsError } = useFudgeSettings(session?.user?.id);
   const [saved, setSaved] = useState(false);
   const [theme, setTheme] = useState<WebTheme>("system");
 

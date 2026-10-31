@@ -68,9 +68,9 @@ export default function Island() {
   const chatListRef = useRef<HTMLOListElement>(null);
   const remoteCommandHandler = useRef<(message: SyncedChatMessage) => void>(() => undefined);
   const { data: session } = authClient.useSession();
-  const { settings } = useFudgeSettings(session?.user.id);
+  const { settings } = useFudgeSettings(session?.user?.id);
   const { messages: sentMessages, addMessage } = useSyncedChat(
-    session?.user.id,
+    session?.user?.id,
     (incoming) => remoteCommandHandler.current(incoming),
   );
 

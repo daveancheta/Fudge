@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 async function currentUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user.id;
+  return session?.user?.id;
 }
 
 function validSettings(value: unknown): value is FudgeSettings {

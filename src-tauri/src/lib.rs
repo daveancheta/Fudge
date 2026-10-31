@@ -287,6 +287,10 @@ pub fn run() {
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_always_on_top(true)?;
+
+                if std::env::var_os("FUDGE_WEBVIEW_DEVTOOLS").is_some() {
+                    window.open_devtools();
+                }
             }
             if cfg!(debug_assertions) {
                 app.handle().plugin(
