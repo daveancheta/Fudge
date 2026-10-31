@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 export type SyncedChatMessage = {
   id: string;
   from: "user" | "assistant";
+  source: "web" | "island";
   text: string;
   createdAt: string;
   synced: boolean;
@@ -17,7 +18,9 @@ type ChatState = { key: string; messages: SyncedChatMessage[] };
 function readLocalMessages(key: string): SyncedChatMessage[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value.filter(isChatMessage) : [];
+    return Array.isArray(value)
+      ? value.filter(isChatMessage).map((message) => ({ ...message, source: message.source || "island" }))
+      : [];
   } catch {
     return [];
   }
@@ -28,6 +31,7 @@ function isChatMessage(value: unknown): value is SyncedChatMessage {
   const message = value as Partial<SyncedChatMessage>;
   return typeof message.id === "string"
     && (message.from === "user" || message.from === "assistant")
+    && (message.source === undefined || message.source === "web" || message.source === "island")
     && typeof message.text === "string"
     && typeof message.createdAt === "string"
     && typeof message.synced === "boolean";
@@ -45,10 +49,15 @@ function mergeMessages(...groups: SyncedChatMessage[][]) {
     Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
 }
 
-export function useSyncedChat(userId: string | undefined) {
+export function useSyncedChat(
+  userId: string | undefined,
+  onRemoteMessage?: (message: SyncedChatMessage) => void,
+) {
   const key = `fudge-chat:${userId || "local"}`;
   const [state, setState] = useState<ChatState>({ key: "", messages: [] });
   const stateRef = useRef(state);
+  const remoteMessageHandler = useRef(onRemoteMessage);
+  remoteMessageHandler.current = onRemoteMessage;
   const messages = state.key === key ? state.messages : [];
 
   const commitMessages = useCallback((next: SyncedChatMessage[]) => {
@@ -72,7 +81,7 @@ export function useSyncedChat(userId: string | undefined) {
         const response = await appFetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: batch.map(({ id, from, text, createdAt }) => ({ id, from, text, createdAt })) }),
+          body: JSON.stringify({ messages: batch.map(({ id, from, source, text, createdAt }) => ({ id, from, source, text, createdAt })) }),
         });
         if (!response.ok) continue;
         const result = (await response.json()) as { messages: Omit<SyncedChatMessage, "synced">[] };
@@ -119,6 +128,7 @@ export function useSyncedChat(userId: string | undefined) {
           const message = payload?.message as Omit<SyncedChatMessage, "synced"> | undefined;
           if (message && isChatMessage({ ...message, synced: true })) {
             commitMessages([{ ...message, synced: true }]);
+            remoteMessageHandler.current?.({ ...message, synced: true });
           }
         })
         .subscribe((status) => {
@@ -135,7 +145,7 @@ export function useSyncedChat(userId: string | undefined) {
     };
   }, [commitMessages, key, syncMessages, userId]);
 
-  const addMessage = useCallback((text: string, from: SyncedChatMessage["from"]) => {
+  const addMessage = useCallback((text: string, from: SyncedChatMessage["from"], source: SyncedChatMessage["source"] = "island") => {
     const current = stateRef.current.key === key
       ? stateRef.current.messages
       : readLocalMessages(key);
@@ -143,6 +153,7 @@ export function useSyncedChat(userId: string | undefined) {
     const message: SyncedChatMessage = {
       id: crypto.randomUUID(),
       from,
+      source,
       text,
       createdAt: new Date(Math.max(Date.now(), previousTimestamp + 1)).toISOString(),
       synced: !userId,

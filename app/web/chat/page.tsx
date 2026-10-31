@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { ArrowUp, AudioLines, Sparkles } from "lucide-react";
 import { useSyncedChat } from "@/lib/use-synced-chat";
+import { isDesktopCommand } from "@/lib/chat-commands";
 
 const authClient = createAuthClient();
 
@@ -23,8 +24,12 @@ export default function WebChatPage() {
     event.preventDefault();
     const text = input.trim();
     if (!text) return;
-    addMessage(text, "user");
-    addMessage(replyTo(text), "assistant");
+    addMessage(text, "user", "web");
+    if (isDesktopCommand(text)) {
+      addMessage("Sent to your Dynamic Island. Keep the desktop app open to run this command.", "assistant", "web");
+    } else {
+      addMessage(replyTo(text), "assistant", "web");
+    }
     setInput("");
   };
 

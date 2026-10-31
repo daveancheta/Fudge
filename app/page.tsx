@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   getCurrentWindow,
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
 import { createAuthClient } from "better-auth/react";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
-import { useSyncedChat } from "@/lib/use-synced-chat";
+import { useSyncedChat, type SyncedChatMessage } from "@/lib/use-synced-chat";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
@@ -61,9 +61,13 @@ export default function Island() {
   const messageInputFocused = useRef(false);
   const expandedRef = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
+  const remoteCommandHandler = useRef<(message: SyncedChatMessage) => void>(() => undefined);
   const { data: session } = authClient.useSession();
   const { settings } = useFudgeSettings(session?.user.id);
-  const { messages: sentMessages, addMessage } = useSyncedChat(session?.user.id);
+  const { messages: sentMessages, addMessage } = useSyncedChat(
+    session?.user.id,
+    (incoming) => remoteCommandHandler.current(incoming),
+  );
 
   useEffect(() => {
     const list = chatListRef.current;
@@ -162,13 +166,7 @@ export default function Island() {
 
   const compactSize = spotifyPlayback ? PLAYING : COLLAPSED;
 
-  const sendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage) return;
-    addMessage(trimmedMessage, "user");
-    setMessage("");
-
+  const executeDesktopCommand = useCallback(async (trimmedMessage: string) => {
     if (/^(?:please\s+)?(?:open|show|launch)\s+fudge\s+settings[.!?]*$/i.test(trimmedMessage)) {
       try {
         await invoke("open_settings");
@@ -176,7 +174,7 @@ export default function Island() {
       } catch (error) {
         addMessage(String(error), "assistant");
       }
-      return;
+      return true;
     }
 
     const listRequest = /^(?:what|which|list)\s+(?:apps|applications)(?:\s+can\s+you\s+open)?[?!.]*$/i.test(trimmedMessage);
@@ -186,7 +184,7 @@ export default function Island() {
         ? `I can open: ${appNames.join(", ")}${installedApps.length > appNames.length ? ", and more" : ""}.`
         : "I couldn't load the installed app list. Try restarting the island.";
       addMessage(response, "assistant");
-      return;
+      return true;
     }
 
     const normalize = (name: string) => name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
@@ -199,50 +197,44 @@ export default function Island() {
     };
 
     const closeCommand = trimmedMessage.match(/^(?:please\s+)?(?:close|quit|exit|stop)\s+(?:the\s+)?(.+?)[.!?]*$/i);
-    if (closeCommand) {
-      const matches = findInstalledApps(closeCommand[1]);
-      if (!matches.length) {
-        addMessage(installedApps.length
-            ? `I couldn't find an installed app named "${closeCommand[1]}". Try "what apps can you open?".`
-            : "I couldn't load the installed app list. Try restarting the island.", "assistant");
-        return;
-      }
-      if (matches.length > 1) {
-        addMessage(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, "assistant");
-        return;
-      }
-
-      try {
-        const response = await invoke<string>("close_installed_app", { appId: matches[0].id });
-        addMessage(response, "assistant");
-      } catch (error) {
-        addMessage(String(error), "assistant");
-      }
-      return;
-    }
-
-    const command = trimmedMessage.match(/^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)[.!?]*$/i);
-    if (!command) return;
+    const openCommand = trimmedMessage.match(/^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)[.!?]*$/i);
+    const command = closeCommand ?? openCommand;
+    if (!command) return false;
 
     const matches = findInstalledApps(command[1]);
-
     if (!matches.length) {
       addMessage(installedApps.length
-          ? `I couldn't find an installed app named "${command[1]}". Try "what apps can you open?".`
-          : "I couldn't load the installed app list. Try restarting the island.", "assistant");
-      return;
+        ? `I couldn't find an installed app named "${command[1]}". Try "what apps can you open?".`
+        : "I couldn't load the installed app list. Try restarting the island.", "assistant");
+      return true;
     }
     if (matches.length > 1) {
       addMessage(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, "assistant");
-      return;
+      return true;
     }
 
     try {
-      const response = await invoke<string>("launch_installed_app", { appId: matches[0].id });
+      const response = await invoke<string>(closeCommand ? "close_installed_app" : "launch_installed_app", { appId: matches[0].id });
       addMessage(response, "assistant");
     } catch (error) {
       addMessage(String(error), "assistant");
     }
+    return true;
+  }, [addMessage, installedApps]);
+
+  remoteCommandHandler.current = (incoming) => {
+    if (incoming.from === "user" && incoming.source === "web") {
+      void executeDesktopCommand(incoming.text);
+    }
+  };
+
+  const sendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
+    addMessage(trimmedMessage, "user", "island");
+    setMessage("");
+    await executeDesktopCommand(trimmedMessage);
   };
 
   return (

@@ -2,6 +2,7 @@ CREATE TABLE "chat_messages" (
 	"id" text PRIMARY KEY,
 	"user_id" text NOT NULL,
 	"role" text NOT NULL,
+	"source" text DEFAULT 'island' NOT NULL,
 	"content" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );

@@ -8,7 +8,7 @@ import { getUserRealtimeTopic } from "@/lib/settings-realtime";
 
 export const runtime = "nodejs";
 
-type ChatMessage = { id: string; from: "user" | "assistant"; text: string; createdAt: string };
+type ChatMessage = { id: string; from: "user" | "assistant"; source: "web" | "island"; text: string; createdAt: string };
 
 async function currentUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -19,6 +19,7 @@ function toMessage(row: typeof chatMessages.$inferSelect): ChatMessage {
   return {
     id: row.id,
     from: row.role as ChatMessage["from"],
+    source: row.source as ChatMessage["source"],
     text: row.content,
     createdAt: row.createdAt.toISOString(),
   };
@@ -30,6 +31,7 @@ function isMessage(value: unknown): value is ChatMessage {
   return typeof message.id === "string"
     && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(message.id)
     && (message.from === "user" || message.from === "assistant")
+    && (message.source === "web" || message.source === "island")
     && typeof message.text === "string"
     && message.text.trim().length > 0
     && message.text.length <= 8000
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
       id: message.id,
       userId,
       role: message.from,
+      source: message.source,
       content: message.text,
       createdAt: new Date(message.createdAt),
     }))).onConflictDoNothing({ target: chatMessages.id }).returning();
