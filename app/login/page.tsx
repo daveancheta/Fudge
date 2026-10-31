@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createAuthClient } from "better-auth/react";
-import { ArrowUpRight, AudioLines, Sparkles } from "lucide-react";
+import { ArrowUp, ArrowUpRight, AudioLines } from "lucide-react";
 
 const authClient = createAuthClient();
 
@@ -39,6 +39,7 @@ export default function LoginPage() {
 
   return (
     <main className="login-shell relative flex min-h-screen flex-col overflow-hidden px-6 py-6 text-[#24221f] sm:px-10 sm:py-8 lg:px-[5.3vw]">
+      <LoginIsland />
       <div aria-hidden="true" className="login-glow login-glow-one" />
       <div aria-hidden="true" className="login-glow login-glow-two" />
 
@@ -67,7 +68,7 @@ export default function LoginPage() {
             Control your device with a few simple words. Open apps, see what’s playing, and keep everyday tasks moving—all from the top of your screen.
           </p>
 
-          <div className="relative mt-12 max-w-[420px]">
+          <div className="relative mt-12 h-[180px] max-w-[420px]">
             <div className="login-orbit login-orbit-one" />
             <div className="login-orbit login-orbit-two" />
             <div className="relative mx-auto flex h-[124px] w-[238px] items-center justify-center rounded-[38px] border border-white/80 bg-[#171715] shadow-[0_26px_65px_rgba(48,38,26,.2),inset_0_1px_1px_rgba(255,255,255,.13)]">
@@ -137,5 +138,154 @@ export default function LoginPage() {
         <span className="hidden sm:block">A softer landing for your day.</span>
       </footer>
     </main>
+  );
+}
+
+function LoginIsland() {
+  const [expanded, setExpanded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [message, setMessage] = useState("");
+  const [sentMessages, setSentMessages] = useState<string[]>([]);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const dragging = useRef(false);
+  const inputFocused = useRef(false);
+
+  const collapse = () => {
+    if (!inputFocused.current) setExpanded(false);
+  };
+
+  return (
+    <div
+      aria-label="Draggable Dynamic Island preview"
+      className={`fixed z-50 touch-none ${expanded ? "cursor-default" : "cursor-grab"} select-none`}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        if (event.target instanceof Element && event.target.closest("input, button")) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        dragOffset.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        dragging.current = true;
+        event.currentTarget.classList.add("cursor-grabbing");
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setPosition({ left: rect.left, top: rect.top });
+      }}
+      onPointerMove={(event) => {
+        if (!dragging.current) return;
+        const width = event.currentTarget.offsetWidth;
+        const height = event.currentTarget.offsetHeight;
+        setPosition({
+          left: Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX - dragOffset.current.x)),
+          top: Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY - dragOffset.current.y)),
+        });
+      }}
+      onPointerUp={(event) => {
+        dragging.current = false;
+        event.currentTarget.classList.remove("cursor-grabbing");
+      }}
+      onPointerCancel={(event) => {
+        dragging.current = false;
+        event.currentTarget.classList.remove("cursor-grabbing");
+      }}
+      onMouseEnter={() => { if (!dragging.current) setExpanded(true); }}
+      onMouseLeave={collapse}
+      style={{
+        left: position?.left ?? "50%",
+        top: position?.top ?? 10,
+        transform: position ? undefined : "translateX(-50%)",
+      }}
+    >
+      <audio
+        ref={audioRef}
+        src="/What%20If%20I%20Call%20(Merry%20Christmas,%20i%20miss%20you)%20-%20Alex%20Crichton.mp3"
+        autoPlay
+        loop
+        preload="metadata"
+        onCanPlay={() => {
+          void audioRef.current?.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+      <div
+        aria-label="Dynamic Island"
+        className="flex flex-col overflow-hidden border border-white/10 bg-black text-white shadow-[0_16px_50px_rgba(30,25,19,.25)] transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(.32,.72,0,1)]"
+        style={{
+          width: expanded ? "min(560px, calc(100vw - 24px))" : 250,
+          height: expanded ? "min(360px, calc(100dvh - 24px))" : 44,
+          borderRadius: expanded ? 32 : 9999,
+        }}
+      >
+        {expanded ? (
+          <>
+            <p className="mx-3 mt-2 mb-1 flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.06] px-2 py-1.5">
+              <span aria-hidden="true" className="size-8 shrink-0 rounded-lg border border-white/10 bg-cover bg-center" style={{ backgroundImage: "url('/alex_crichton.jpg')" }} />
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-[11px] font-medium text-white/90">What If I Call (Merry Christmas, i miss you)</span>
+                <span className="truncate text-[10px] text-white/50">Alex Crichton</span>
+              </span>
+              <span aria-hidden="true" className="ml-auto flex h-5 shrink-0 items-center gap-[2px] px-1">
+                {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
+                  <span key={index} className={`${isPlaying ? "music-bar" : "music-bar-still"} w-[3px] rounded-full bg-[#ff637d] ${height}`} style={{ animationDelay: `${index * 90}ms`, animationDuration: `${560 + (index % 3) * 130}ms` }} />
+                ))}
+              </span>
+            </p>
+            <ol aria-live="polite" className="flex min-h-0 flex-1 list-none flex-col gap-1.5 overflow-y-auto px-4 py-3 text-xs">
+              <li className="max-w-[85%] self-start rounded-2xl rounded-tl-md bg-white/10 px-3 py-2 text-white/75">
+                Try <span className="text-white">&quot;open Chrome&quot;</span> or ask which apps I can open.
+              </li>
+              {sentMessages.map((sentMessage, index) => (
+                <li key={`${index}-${sentMessage}`} className="max-w-[85%] self-end rounded-2xl rounded-tr-md bg-white/15 px-3 py-2 text-white">
+                  {sentMessage}
+                </li>
+              ))}
+            </ol>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const trimmed = message.trim();
+                if (!trimmed) return;
+                setSentMessages((messages) => [...messages, trimmed]);
+                setMessage("");
+              }}
+              className="flex items-center gap-2 border-t border-white/10 px-3 pb-3 pt-2"
+            >
+              <input
+                aria-label="Chat message"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onFocus={() => { inputFocused.current = true; }}
+                onBlur={() => { inputFocused.current = false; }}
+                placeholder="Message..."
+                className="h-9 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white outline-none placeholder:text-white/35 focus:border-white/25"
+              />
+              <button
+                type="submit"
+                disabled={!message.trim()}
+                aria-label="Send command"
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-black transition hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
+              >
+                <ArrowUp aria-hidden="true" className="size-4" />
+              </button>
+            </form>
+          </>
+        ) : (
+          <p aria-label="Now playing What If I Call by Alex Crichton" className="flex h-full items-center justify-between gap-2 px-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <span aria-hidden="true" className="flex h-5 shrink-0 items-center gap-[2px]">
+                {["h-2", "h-4", "h-2.5", "h-5", "h-3", "h-4"].map((height, index) => (
+                  <span key={index} className={`${isPlaying ? "music-bar" : "music-bar-still"} w-[3px] rounded-full bg-[#ff637d] ${height}`} style={{ animationDelay: `${index * 90}ms`, animationDuration: `${560 + (index % 3) * 130}ms` }} />
+                ))}
+              </span>
+              <span className="flex min-w-0 flex-col text-left">
+                <span className="truncate text-[10px] font-medium text-white/90">What If I Call</span>
+                <span className="truncate text-[9px] text-white/45">Alex Crichton</span>
+              </span>
+            </span>
+            <span aria-hidden="true" className="size-8 shrink-0 rounded-full border border-white/10 bg-cover bg-center" style={{ backgroundImage: "url('/alex_crichton.jpg')" }} />
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from "@tauri-apps/api/window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
@@ -242,8 +242,24 @@ export default function Island() {
       >
         {expanded ? (
           <>
+            <header className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="relative z-10 flex items-center justify-between">
+          <span className="grid size-9 place-items-center rounded-[13px] bg-white text-[#25231f] shadow-[0_5px_15px_rgba(44,37,27,.13)] transition-transform group-hover:-rotate-6">
+            <AudioLines className="size-[17px]" strokeWidth={2.2} />
+          </span>
+      </div>
+                <span className="flex flex-col">
+                  <span className="text-xs font-semibold tracking-wide text-white/95">Fudge assistant</span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-white/40">
+                    <span className="size-1.5 rounded-full bg-emerald-400" /> Ready to help
+                  </span>
+                </span>
+              </div>
+            </header>
+
             {spotifyPlayback && (
-              <p className="mx-3 mb-1 flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.06] px-2 py-1.5 mt-2">
+              <p className="mx-3 mt-2 flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-2 py-1.5">
                 <span
                   aria-hidden="true"
                   className="size-8 shrink-0 rounded-lg bg-white/10 bg-cover bg-center"
@@ -269,23 +285,27 @@ export default function Island() {
               </p>
             )} 
 
-            <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-1.5 overflow-y-auto px-4 py-1 text-xs">
-              <li className="max-w-[85%] self-start rounded-2xl rounded-tl-md bg-white/10 px-3 py-2 text-white/75">
-                Try <span className="text-white">"open Chrome"</span> or ask which apps I can open.
+            <ol aria-live="polite" className="scrollable-div flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs">
+              <li className="flex max-w-[92%] items-end gap-2 self-start">
+                <div className="rounded-2xl rounded-bl-md border border-white/[0.07] bg-white/[0.055] px-3.5 py-2.5 text-[11px] leading-[1.65] text-white/65">
+                  <p className="mb-1 font-medium text-white/90">Hey, I’m Fudge.</p>
+                  I can open apps on your computer. Try <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">“open Chrome”</span> or ask what I can open.
+                </div>
               </li>
               {sentMessages.map((sentMessage, index) => (
                 <li
                   key={`${index}-${sentMessage.text}`}
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 ${sentMessage.from === "user"
-                    ? "self-end rounded-tr-md bg-white/15 text-white"
-                    : "self-start rounded-tl-md bg-white/10 text-white/75"}`}
+                  className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 text-[11px] leading-[1.6] ${sentMessage.from === "user"
+                    ? "self-end rounded-br-md bg-white text-black shadow-[0_4px_16px_rgba(255,99,125,0.18)]"
+                    : "self-start rounded-bl-md border border-white/[0.07] bg-white/[0.055] text-white/75"}`}
                 >
                   {sentMessage.text}
                 </li>
               ))}
             </ol>
 
-            <form onSubmit={sendMessage} className="flex items-center gap-2 border-t border-white/10 px-3 pb-3 pt-2">
+            <form onSubmit={sendMessage} className="shrink-0 border-t border-white/[0.08] bg-white/[0.015] px-3 pb-3 pt-2.5">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.045] p-1.5 pl-3 focus-within:border-white/20 focus-within:bg-white/[0.06]">
               <Input
                 aria-label="Chat message"
                 value={message}
@@ -295,18 +315,20 @@ export default function Island() {
                   if (timer.current) clearTimeout(timer.current);
                 }}
                 onBlur={() => { messageInputFocused.current = false; }}
-                placeholder="Message..."
-                className="h-9 min-w-0 flex-1 cursor-text rounded-full border-white/10 bg-white/5 px-3 text-xs text-white placeholder:text-white/35 shadow-none focus-visible:border-white/25 focus-visible:ring-white/10"
+                placeholder="Ask Fudge or try ‘open Chrome’..."
+                className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/35 shadow-none focus-visible:ring-0"
               />
               <Button
                 type="submit"
                 disabled={!message.trim()}
                 size="icon-sm"
                 aria-label="Send command"
-                className="size-9 cursor-pointer rounded-full bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
+                className="size-8 cursor-pointer rounded-xl bg-white text-black shadow-none hover:bg-white/85 disabled:bg-white/10 disabled:text-white/30"
               >
                 <ArrowUp aria-hidden="true" className="size-4" />
               </Button>
+              </div>
+              <p className="mt-2 text-center text-[9px] text-white/25">Try “open [app name]” · “what apps can you open?”</p>
             </form>
           </>
         ) : spotifyPlayback ? (
