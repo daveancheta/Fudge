@@ -262,9 +262,7 @@ export default function Island() {
         aria-label={expanded ? "Dynamic Island" : "Expand Dynamic Island"}
         role={expanded ? "region" : "button"}
         tabIndex={expanded ? undefined : 0}
-        className={`relative flex shrink-0 flex-col overflow-hidden border border-white/[0.11] bg-[#171615] text-[#f5f1e9] ${expanded ? "cursor-move" : "cursor-pointer"}`}
-      
-      
+        className={`relative flex shrink-0 flex-col overflow-hidden border border-white/[0.11] bg-[#171615] text-[#f5f1e9] ${expanded ? "" : "cursor-pointer"}`}
         style={{
           width: expanded ? EXPANDED.w : compactSize.w,
           height: expanded ? EXPANDED.h : compactSize.h,
