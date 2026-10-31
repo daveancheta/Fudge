@@ -10,19 +10,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
+import { createAuthClient } from "better-auth/react";
+import { useFudgeSettings } from "@/lib/use-fudge-settings";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
 const EXPANDED = { w: 560, h: 360 };
 const TOP_MARGIN = 6;
 const POSITION_STORAGE_KEY = "fudge-island-position";
-const SETTINGS_STORAGE_KEY = "fudge-settings";
 type InstalledApp = { id: string; name: string };
 type SpotifyPlayback = { title: string; artist: string; artwork: string | null };
-type FudgeSettings = { waveColor: string; randomWaveColor: boolean; animateWave: boolean };
-const DEFAULT_SETTINGS: FudgeSettings = { waveColor: "#ff637d", randomWaveColor: true, animateWave: true };
 
 type SavedPosition = { centerX: number; topY: number };
+
 
 function getSavedPosition(): SavedPosition | null {
   try {
@@ -48,6 +48,8 @@ async function placeWindow(w: number, h: number) {
   await win.setPosition(new LogicalPosition(x, y));
 }
 
+const authClient = createAuthClient();
+
 export default function Island() {
   const [expanded, setExpanded] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,10 +57,12 @@ export default function Island() {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [spotifyPlayback, setSpotifyPlayback] = useState<SpotifyPlayback | null>(null);
   const [waveColor, setWaveColor] = useState("#ff637d");
-  const [settings, setSettings] = useState<FudgeSettings>(DEFAULT_SETTINGS);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageInputFocused = useRef(false);
   const expandedRef = useRef(false);
+  const { data: session } = authClient.useSession();
+  const { settings } = useFudgeSettings(session?.user.id);
+
 
   useEffect(() => {
     void placeWindow(COLLAPSED.w, COLLAPSED.h);
@@ -116,18 +120,6 @@ export default function Island() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
-
-  useEffect(() => {
-    const loadSettings = () => {
-      try {
-        const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (saved) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-      } catch { /* Use defaults when settings are unavailable. */ }
-    };
-    loadSettings();
-    window.addEventListener("storage", loadSettings);
-    return () => window.removeEventListener("storage", loadSettings);
   }, []);
 
   useEffect(() => {

@@ -5,27 +5,25 @@ import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { Check, MonitorSmartphone, Moon, Sun, Laptop } from "lucide-react";
 import { setWebTheme, WEB_THEME_KEY, type WebTheme } from "../theme-provider";
+import { useFudgeSettings } from "@/lib/use-fudge-settings";
 
 const authClient = createAuthClient();
-const STORAGE_KEY = "fudge-settings";
-type Settings = { waveColor: string; randomWaveColor: boolean; animateWave: boolean };
-const defaults: Settings = { waveColor: "#ff637d", randomWaveColor: true, animateWave: true };
 
 export default function WebSettingsPage() {
   const { data: session, isPending } = authClient.useSession();
-  const [settings, setSettings] = useState(defaults);
+  const { settings, saveSettings, settingsError } = useFudgeSettings(session?.user.id);
   const [saved, setSaved] = useState(false);
   const [theme, setTheme] = useState<WebTheme>("system");
 
   useEffect(() => {
-    try { const value = localStorage.getItem(STORAGE_KEY); if (value) setSettings({ ...defaults, ...JSON.parse(value) }); } catch { /* Keep the defaults. */ }
     const savedTheme = localStorage.getItem(WEB_THEME_KEY) as WebTheme | null;
     if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") setTheme(savedTheme);
   }, []);
 
-  const update = (next: Settings) => {
-    setSettings(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); setSaved(true); window.setTimeout(() => setSaved(false), 1800); } catch { setSaved(false); }
+  const update = (next: typeof settings) => {
+    void saveSettings(next);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1800);
   };
 
   const updateTheme = (value: WebTheme) => {
@@ -45,9 +43,10 @@ export default function WebSettingsPage() {
     </section>
     <section className="mt-8 space-y-4">
       <div><h2 className="text-sm font-medium">Music wave</h2><p className="mt-1 text-xs text-white/40">Choose how the island looks while music is playing.</p></div>
-      <SettingRow title="Random color" detail="Change color for each track"><input aria-label="Random color" type="checkbox" checked={settings.randomWaveColor} onChange={(e) => update({ ...settings, randomWaveColor: e.target.checked })} className="size-4 accent-[#ff8295]" /></SettingRow>
-      <SettingRow title="Wave color" detail="Used when random color is off" muted={settings.randomWaveColor}><input aria-label="Wave color" type="color" value={settings.waveColor} disabled={settings.randomWaveColor} onChange={(e) => update({ ...settings, waveColor: e.target.value })} className="size-8 cursor-pointer rounded-lg border-0 bg-transparent disabled:cursor-default" /></SettingRow>
-      <SettingRow title="Animate wave" detail="Show the dancing music bars"><input aria-label="Animate wave" type="checkbox" checked={settings.animateWave} onChange={(e) => update({ ...settings, animateWave: e.target.checked })} className="size-4 accent-[#ff8295]" /></SettingRow>
+      {settingsError && <p role="status" className="rounded-lg border border-red-400/20 bg-red-400/[0.06] px-3 py-2 text-xs text-red-200/80">{settingsError}</p>}
+      <SettingRow title="Random color" detail="Change color for each track"><input aria-label="Random color" type="checkbox" checked={settings.randomWaveColor} disabled={isPending || !session?.user} onChange={(e) => update({ ...settings, randomWaveColor: e.target.checked })} className="size-4 accent-[#ff8295] disabled:cursor-not-allowed" /></SettingRow>
+      <SettingRow title="Wave color" detail="Used when random color is off" muted={settings.randomWaveColor}><input aria-label="Wave color" type="color" value={settings.waveColor} disabled={settings.randomWaveColor || isPending || !session?.user} onChange={(e) => update({ ...settings, waveColor: e.target.value })} className="size-8 cursor-pointer rounded-lg border-0 bg-transparent disabled:cursor-default" /></SettingRow>
+      <SettingRow title="Animate wave" detail="Show the dancing music bars"><input aria-label="Animate wave" type="checkbox" checked={settings.animateWave} disabled={isPending || !session?.user} onChange={(e) => update({ ...settings, animateWave: e.target.checked })} className="size-4 accent-[#ff8295] disabled:cursor-not-allowed" /></SettingRow>
     </section>
     <section className="mt-9 border-t border-white/10 pt-7">
       <h2 className="text-sm font-medium">Account</h2><p className="mt-1 text-xs text-white/40">Manage the account linked to this web workspace.</p>
