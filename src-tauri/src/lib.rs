@@ -20,10 +20,17 @@ struct InstalledApp {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SpotifyPlayback {
+struct MediaPlayback {
     title: String,
     artist: String,
     artwork: Option<String>,
+    source_id: String,
+    app_name: String,
+    is_playing: bool,
+    can_play: bool,
+    can_pause: bool,
+    can_skip_previous: bool,
+    can_skip_next: bool,
 }
 
 fn encode_base64(bytes: &[u8]) -> String {
@@ -50,7 +57,7 @@ fn encode_base64(bytes: &[u8]) -> String {
 }
 
 #[tauri::command]
-fn get_spotify_playback() -> Result<Option<SpotifyPlayback>, String> {
+fn get_media_playback() -> Result<Option<MediaPlayback>, String> {
     #[cfg(target_os = "windows")]
     {
         use windows::{
@@ -63,7 +70,7 @@ fn get_spotify_playback() -> Result<Option<SpotifyPlayback>, String> {
         };
 
         return std::thread::spawn(|| {
-            let result = (|| -> windows::core::Result<Option<SpotifyPlayback>> {
+            let result = (|| -> windows::core::Result<Option<MediaPlayback>> {
                 unsafe {
                     RoInitialize(RO_INIT_MULTITHREADED)?;
                 }
@@ -80,62 +87,149 @@ fn get_spotify_playback() -> Result<Option<SpotifyPlayback>, String> {
                 let manager =
                     GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.join()?;
                 let sessions = manager.GetSessions()?;
+                let current_session = manager.GetCurrentSession().ok();
+                let current_is_playing = current_session
+                    .as_ref()
+                    .and_then(|session| session.GetPlaybackInfo().ok())
+                    .and_then(|info| info.PlaybackStatus().ok())
+                    .is_some_and(|status| status == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing);
+                let mut selected_session = current_is_playing.then(|| current_session.clone()).flatten();
                 for index in 0..sessions.Size()? {
-                    let session = sessions.GetAt(index)?;
-                    if !session
-                        .SourceAppUserModelId()?
-                        .to_string_lossy()
-                        .to_lowercase()
-                        .contains("spotify")
-                    {
-                        continue;
+                    if selected_session.is_some() {
+                        break;
                     }
+                    let session = sessions.GetAt(index)?;
                     let playback = session.GetPlaybackInfo()?;
                     if playback.PlaybackStatus()?
-                        != GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
-                    {
-                        continue;
+                        == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing {
+                        selected_session = Some(session);
+                        break;
                     }
-
-                    let properties = session.TryGetMediaPropertiesAsync()?.join()?;
-                    let title = properties.Title()?.to_string_lossy();
-                    let artist = properties.Artist()?.to_string_lossy();
-                    let artwork = properties
-                        .Thumbnail()
-                        .ok()
-                        .and_then(|reference| reference.OpenReadAsync().ok()?.join().ok())
-                        .and_then(|stream| {
-                            let size = stream.Size().ok()?.min(1_000_000) as u32;
-                            if size == 0 {
-                                return None;
-                            }
-                            let content_type = stream.ContentType().ok()?.to_string_lossy();
-                            let input = stream.GetInputStreamAt(0).ok()?;
-                            let reader = DataReader::CreateDataReader(&input).ok()?;
-                            reader.LoadAsync(size).ok()?.join().ok()?;
-                            let mut bytes = vec![0; size as usize];
-                            reader.ReadBytes(&mut bytes).ok()?;
-                            Some(format!(
-                                "data:{content_type};base64,{}",
-                                encode_base64(&bytes)
-                            ))
-                        });
-                    return Ok(Some(SpotifyPlayback {
-                        title,
-                        artist,
-                        artwork,
-                    }));
                 }
-                Ok(None)
+                let Some(session) = selected_session
+                    .or(current_session)
+                else {
+                    return Ok(None);
+                };
+
+                let playback_info = session.GetPlaybackInfo()?;
+                let controls = playback_info.Controls()?;
+                let properties = session.TryGetMediaPropertiesAsync()?.join()?;
+                let title = properties.Title()?.to_string_lossy();
+                let artist = properties.Artist()?.to_string_lossy();
+                let source_id = session.SourceAppUserModelId()?.to_string_lossy();
+                let app_name = media_app_name(&source_id);
+                let artwork = properties
+                    .Thumbnail()
+                    .ok()
+                    .and_then(|reference| reference.OpenReadAsync().ok()?.join().ok())
+                    .and_then(|stream| {
+                        let size = stream.Size().ok()?.min(1_000_000) as u32;
+                        if size == 0 {
+                            return None;
+                        }
+                        let content_type = stream.ContentType().ok()?.to_string_lossy();
+                        let input = stream.GetInputStreamAt(0).ok()?;
+                        let reader = DataReader::CreateDataReader(&input).ok()?;
+                        reader.LoadAsync(size).ok()?.join().ok()?;
+                        let mut bytes = vec![0; size as usize];
+                        reader.ReadBytes(&mut bytes).ok()?;
+                        Some(format!(
+                            "data:{content_type};base64,{}",
+                            encode_base64(&bytes)
+                        ))
+                    });
+                Ok(Some(MediaPlayback {
+                    title,
+                    artist,
+                    artwork,
+                    source_id,
+                    app_name,
+                    is_playing: playback_info.PlaybackStatus()?
+                        == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing,
+                    can_play: controls.IsPlayEnabled().unwrap_or(false),
+                    can_pause: controls.IsPauseEnabled().unwrap_or(false),
+                    can_skip_previous: controls.IsPreviousEnabled().unwrap_or(false),
+                    can_skip_next: controls.IsNextEnabled().unwrap_or(false),
+                }))
             })();
             result.map_err(|error| error.to_string())
         })
         .join()
-        .map_err(|_| "Spotify playback detection stopped unexpectedly.".to_owned())?;
+        .map_err(|_| "Media playback detection stopped unexpectedly.".to_owned())?;
     }
 
     #[cfg(not(target_os = "windows"))]
     Ok(None)
+}
+
+fn media_app_name(source_id: &str) -> String {
+    let app_id = source_id.rsplit('!').next().unwrap_or(source_id);
+    let package_name = app_id.split('_').next().unwrap_or(app_id);
+    let app_name = package_name
+        .rsplit_once('.')
+        .map(|(_, name)| name)
+        .unwrap_or(package_name)
+        .trim_end_matches(".exe");
+    if app_name.is_empty() {
+        "Media player".to_owned()
+    } else {
+        app_name.to_owned()
+    }
+}
+
+#[tauri::command]
+fn control_media_session(source_id: String, action: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
+        use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize};
+
+        return std::thread::spawn(move || {
+            let result = (|| -> Result<(), String> {
+                unsafe { RoInitialize(RO_INIT_MULTITHREADED) }
+                    .map_err(|error| error.to_string())?;
+                struct WinRtApartment;
+                impl Drop for WinRtApartment {
+                    fn drop(&mut self) { unsafe { RoUninitialize(); } }
+                }
+                let _apartment = WinRtApartment;
+                let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+                    .map_err(|error| error.to_string())?
+                    .join()
+                    .map_err(|error| error.to_string())?;
+                let sessions = manager.GetSessions().map_err(|error| error.to_string())?;
+                let mut target = None;
+                for index in 0..sessions.Size().map_err(|error| error.to_string())? {
+                    let session = sessions.GetAt(index).map_err(|error| error.to_string())?;
+                    if session.SourceAppUserModelId().map_err(|error| error.to_string())?.to_string_lossy() == source_id {
+                        target = Some(session);
+                        break;
+                    }
+                }
+                let session = target.ok_or_else(|| "The media player is no longer active.".to_owned())?;
+                let succeeded = match action.as_str() {
+                    "previous" => session.TrySkipPreviousAsync()
+                        .map_err(|error| error.to_string())?.join()
+                        .map_err(|error| error.to_string())?,
+                    "playPause" => session.TryTogglePlayPauseAsync()
+                        .map_err(|error| error.to_string())?.join()
+                        .map_err(|error| error.to_string())?,
+                    "next" => session.TrySkipNextAsync()
+                        .map_err(|error| error.to_string())?.join()
+                        .map_err(|error| error.to_string())?,
+                    _ => return Err("Unknown media control action.".into()),
+                };
+                if succeeded { Ok(()) } else { Err("The media player did not accept that control.".into()) }
+            })();
+            result
+        })
+        .join()
+        .map_err(|_| "Media control request stopped unexpectedly.".to_owned())?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    Err("Media controls are currently available on Windows.".into())
 }
 
 #[tauri::command]
@@ -320,7 +414,8 @@ pub fn run() {
             list_installed_apps,
             launch_installed_app,
             close_installed_app,
-            get_spotify_playback,
+            get_media_playback,
+            control_media_session,
             open_settings
         ])
         .run(tauri::generate_context!())
