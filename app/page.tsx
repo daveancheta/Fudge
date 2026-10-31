@@ -13,6 +13,7 @@ import { ArrowUp, AudioLines, Command, Sparkles } from "lucide-react";
 import { createAuthClient } from "better-auth/react";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
 import { useSyncedChat, type SyncedChatMessage } from "@/lib/use-synced-chat";
+import { redirect } from "next/navigation";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
@@ -50,6 +51,10 @@ async function placeWindow(w: number, h: number) {
 }
 
 const authClient = createAuthClient();
+
+if (process.env.SYSTEM === "website") {
+  redirect("/login")
+}
 
 export default function Island() {
   const [expanded, setExpanded] = useState(false);
