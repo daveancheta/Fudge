@@ -19,6 +19,7 @@ const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
 const EXPANDED = { w: 560, h: 360 };
 const TOP_MARGIN = 6;
+const SCREEN_GAP = 8;
 const POSITION_STORAGE_KEY = "fudge-island-position";
 type InstalledApp = { id: string; name: string };
 type MediaPlayback = {
@@ -54,9 +55,17 @@ async function placeWindow(w: number, h: number) {
   if (!monitor) return;
   const scale = monitor.scaleFactor;
   const screenW = monitor.size.width / scale;
+  const screenH = monitor.size.height / scale;
+  const screenLeft = monitor.position.x / scale;
+  const screenTop = monitor.position.y / scale;
   const saved = getSavedPosition();
-  const x = saved ? saved.centerX - w / 2 : monitor.position.x / scale + (screenW - w) / 2;
-  const y = saved?.topY ?? monitor.position.y / scale + TOP_MARGIN;
+  const maxX = screenLeft + screenW - w - SCREEN_GAP;
+  const maxY = screenTop + screenH - h - SCREEN_GAP;
+  const desiredX = saved ? saved.centerX - w / 2 : screenLeft + (screenW - w) / 2;
+  const desiredY = saved?.topY ?? screenTop + TOP_MARGIN;
+  // Keep the whole island visible when expanding near a monitor edge.
+  const x = Math.max(screenLeft + SCREEN_GAP, Math.min(maxX, desiredX));
+  const y = Math.max(screenTop + SCREEN_GAP, Math.min(maxY, desiredY));
   await win.setSize(new LogicalSize(w, h));
   await win.setPosition(new LogicalPosition(x, y));
 }

@@ -19,9 +19,22 @@ export default function DownloadIsland() {
     if (expanded && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [expanded, sentMessages]);
 
+  useEffect(() => {
+    if (!expanded || !position) return;
+    const island = document.querySelector<HTMLElement>("[data-download-island]");
+    if (!island) return;
+    const width = island.offsetWidth;
+    const height = island.offsetHeight;
+    setPosition((current) => current && ({
+      left: Math.max(8, Math.min(window.innerWidth - width - 8, current.left)),
+      top: Math.max(8, Math.min(window.innerHeight - height - 8, current.top)),
+    }));
+  }, [expanded]);
+
   return (
     <div
       aria-label="Draggable Dynamic Island preview"
+      data-download-island
       className={`fixed z-50 touch-none ${expanded ? "cursor-default" : "cursor-pointer"} select-none`}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
