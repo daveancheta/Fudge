@@ -78,7 +78,7 @@ export default function WebSidebar() {
     </aside>
     <div className="web-mobile-header">
       <Link href="/web/chat" className="web-brand">fudge<span>.</span></Link>
-      <nav aria-label="Main navigation"><Link href="/web/chat">Chat</Link><Link href="/web/settings">Settings</Link>{session?.user && <button type="button" onClick={signOut} disabled={signingOut} aria-label="Sign out"><LogOut size={16} /></button>}</nav>
+      <nav aria-label="Main navigation">{pathname !== "/web/chat" && <Link href="/web/chat">Chat</Link>}{pathname !== "/web/settings" && <Link href="/web/settings">Settings</Link>}{session?.user && <button type="button" onClick={signOut} disabled={signingOut} aria-label="Sign out"><LogOut size={16} /></button>}</nav>
     </div>
     {signOutError && <p className="web-mobile-signout-error" role="alert">{signOutError}</p>}
   </>;

@@ -62,9 +62,8 @@ export default function WebChatPage() {
         className="flex max-w-[55%] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1.5 text-[11px] text-white/55 sm:px-3 sm:py-2"
       >
         <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.45)]" />
-        <span className="hidden sm:inline">Signed in</span>
+        <span>Signed in</span>
         <span className="hidden max-w-40 truncate md:inline">{session.user.name || session.user.email}</span>
-        <span className="sr-only sm:hidden">Signed in</span>
       </div>
     </header>
 
