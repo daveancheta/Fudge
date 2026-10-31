@@ -53,7 +53,7 @@ async function placeWindow(w: number, h: number) {
 const authClient = createAuthClient();
 
 if (process.env.SYSTEM === "website") {
-  redirect("/login")
+  redirect("/download")
 }
 
 export default function Island() {

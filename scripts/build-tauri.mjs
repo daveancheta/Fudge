@@ -1,23 +1,35 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, renameSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 // Tauri ships a static frontend. Its API requests use NEXT_PUBLIC_REMOTE_API_URL,
-// so server-only Next route handlers must not be included in the export build.
-const apiDirectory = resolve("app/api");
-const apiBackup = resolve(".tauri-api-backup");
+// so replace server-only route handlers with static placeholders during export.
+// Keep originals in memory and restore them after Next finishes, even on failure.
+const apiDirectory = resolve("app", "api");
+const routeFiles = [];
 
-if (existsSync(apiBackup)) {
-  throw new Error(`Refusing to overwrite existing API backup at ${apiBackup}`);
+function findRouteFiles(directory) {
+  if (!existsSync(directory)) return;
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) findRouteFiles(path);
+    else if (/^route\.(js|jsx|ts|tsx)$/.test(entry.name)) routeFiles.push(path);
+  }
 }
 
-let apiWasMoved = false;
+findRouteFiles(apiDirectory);
+const originalRoutes = new Map(routeFiles.map((path) => [path, readFileSync(path, "utf8")]));
+
 let exitCode = 1;
 
 try {
-  if (existsSync(apiDirectory)) {
-    renameSync(apiDirectory, apiBackup);
-    apiWasMoved = true;
+  for (const path of routeFiles) {
+    const isDynamicRoute = /\[[^/\\]+\]/.test(path.slice(apiDirectory.length));
+    const staticParams = isDynamicRoute
+      ? 'export const dynamicParams = false;\nexport function generateStaticParams() { return [{ all: ["__tauri_static_placeholder__"] }]; }\n'
+      : "";
+    writeFileSync(path, `export const dynamic = "force-static";\n${staticParams}export async function GET() { return Response.json({}); }\n`);
   }
 
   const result = spawnSync("npm", ["run", "build"], {
@@ -28,7 +40,7 @@ try {
 
   exitCode = result.status ?? 1;
 } finally {
-  if (apiWasMoved) renameSync(apiBackup, apiDirectory);
+  for (const [path, source] of originalRoutes) writeFileSync(path, source);
 }
 
 process.exit(exitCode);
