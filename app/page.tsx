@@ -271,7 +271,7 @@ export default function Island() {
         aria-label={expanded ? "Dynamic Island" : "Expand Dynamic Island"}
         role={expanded ? "region" : "button"}
         tabIndex={expanded ? undefined : 0}
-        className={`relative flex shrink-0 flex-col overflow-hidden border border-white/[0.11] bg-[#171615] text-[#f5f1e9] ${expanded ? "" : "cursor-pointer"}`}
+        className={`relative flex shrink-0 flex-col select-none overflow-hidden border border-white/[0.11] bg-[#171615] text-[#f5f1e9] ${expanded ? "" : "cursor-pointer"}`}
         style={{
           width: expanded ? EXPANDED.w : compactSize.w,
           height: expanded ? EXPANDED.h : compactSize.h,
@@ -359,7 +359,7 @@ export default function Island() {
                     if (timer.current) clearTimeout(timer.current);
                   }}
                   placeholder="Message Fudge…"
-                  className="h-8 min-w-0 flex-1 cursor-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/30 shadow-none focus-visible:ring-0"
+                  className="h-8 min-w-0 flex-1 cursor-text select-text border-0 bg-transparent px-0 text-[11px] text-white placeholder:text-white/30 shadow-none focus-visible:ring-0"
                 />
                 <Button
                   type="submit"
