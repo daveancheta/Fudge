@@ -239,9 +239,9 @@ export default function Island() {
       return true;
     }
 
+    addMessage(`${closeCommand ? "Closing" : "Opening"} ${matches[0].name}…`, "assistant");
     try {
-      const response = await invoke<string>(closeCommand ? "close_installed_app" : "launch_installed_app", { appId: matches[0].id });
-      addMessage(response, "assistant");
+      await invoke<string>(closeCommand ? "close_installed_app" : "launch_installed_app", { appId: matches[0].id });
     } catch (error) {
       addMessage(String(error), "assistant");
     }
