@@ -197,13 +197,20 @@ export default function Island() {
     }
   };
 
-  const executeDesktopCommand = useCallback(async (trimmedMessage: string) => {
+  const addAssistantReply = useCallback((text: string, speak = false) => {
+    addMessage(text, "assistant");
+    if (!speak || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  }, [addMessage]);
+
+  const executeDesktopCommand = useCallback(async (trimmedMessage: string, speakReplies = false) => {
     if (/^(?:please\s+)?(?:open|show|launch)\s+fudge\s+settings[.!?]*$/i.test(trimmedMessage)) {
       try {
         await invoke("open_settings");
-        addMessage("Opening Fudge settings.", "assistant");
+        addAssistantReply("Opening Fudge settings.", speakReplies);
       } catch (error) {
-        addMessage(String(error), "assistant");
+        addAssistantReply(String(error), speakReplies);
       }
       return true;
     }
@@ -214,7 +221,7 @@ export default function Island() {
       const response = appNames.length
         ? `I can open: ${appNames.join(", ")}${installedApps.length > appNames.length ? ", and more" : ""}.`
         : "I couldn't load the installed app list. Try restarting the island.";
-      addMessage(response, "assistant");
+      addAssistantReply(response, speakReplies);
       return true;
     }
 
@@ -234,24 +241,24 @@ export default function Island() {
 
     const matches = findInstalledApps(command[1]);
     if (!matches.length) {
-      addMessage(installedApps.length
+      addAssistantReply(installedApps.length
         ? `I couldn't find an installed app named "${command[1]}". Try "what apps can you open?".`
-        : "I couldn't load the installed app list. Try restarting the island.", "assistant");
+        : "I couldn't load the installed app list. Try restarting the island.", speakReplies);
       return true;
     }
     if (matches.length > 1) {
-      addMessage(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, "assistant");
+      addAssistantReply(`I found several matches: ${matches.slice(0, 5).map((app) => app.name).join(", ")}. Use a more specific name.`, speakReplies);
       return true;
     }
 
-    addMessage(`${closeCommand ? "Closing" : "Opening"} ${matches[0].name}…`, "assistant");
+    addAssistantReply(`${closeCommand ? "Closing" : "Opening"} ${matches[0].name}…`, speakReplies);
     try {
       await invoke<string>(closeCommand ? "close_installed_app" : "launch_installed_app", { appId: matches[0].id });
     } catch (error) {
-      addMessage(String(error), "assistant");
+      addAssistantReply(String(error), speakReplies);
     }
     return true;
-  }, [addMessage, installedApps]);
+  }, [addAssistantReply, installedApps]);
 
   useEffect(() => {
     remoteCommandHandler.current = (incoming) => {
@@ -291,7 +298,7 @@ export default function Island() {
       const spokenText = event.results[0]?.[0]?.transcript.trim();
       if (!spokenText) return;
       addMessage(spokenText, "user", "island");
-      void executeDesktopCommand(spokenText);
+      void executeDesktopCommand(spokenText, true);
     };
     recognition.onerror = () => setListening(false);
     recognition.onend = () => {
