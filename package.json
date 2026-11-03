@@ -7,6 +7,7 @@
     "build": "next build",
     "build:tauri": "node scripts/build-tauri.mjs",
     "start": "next start",
+    "type-check": "next typegen && tsc --noEmit",
     "lint": "next lint",
     "tauri": "tauri"
   },
