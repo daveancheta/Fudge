@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowDownToLine, ArrowUpRight, AudioLines, Check, Download } from "lucide-react";
+import { ArrowDownToLine, AudioLines, Check, Download } from "lucide-react";
 import DownloadIsland from "./download-island";
 
 export const metadata: Metadata = {
@@ -42,9 +42,7 @@ export default function DownloadPage() {
           </span>
           <span className="text-[19px] font-semibold tracking-[-.055em]">fudge</span>
         </a>
-        <a href="/login" className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium text-[#777168] transition hover:bg-white/70 hover:text-[#28251f]">
-          Sign in <ArrowUpRight aria-hidden="true" className="size-3.5" />
-        </a>
+        <span className="rounded-full px-3 py-2 text-[12px] font-medium text-[#777168]">For Windows</span>
       </header>
 
       <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 pb-14 pt-8 text-center sm:px-9 sm:pb-20 sm:pt-12">

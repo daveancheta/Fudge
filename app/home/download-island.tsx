@@ -128,7 +128,7 @@ export default function DownloadIsland() {
                 </span>
               </div>
             </header>
-            <p className="mx-3 mt-2 flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-2 py-1.5">
+            <div className="mx-3 mt-2 flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.04] px-2 py-1.5">
               <span aria-hidden="true" className="size-8 shrink-0 rounded-lg border border-white/10 bg-cover bg-center" style={{ backgroundImage: "url('/alex_crichton.jpg')" }} />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-[11px] font-medium text-white/90">What If I Call (Merry Christmas, i miss you)</span>
@@ -163,7 +163,7 @@ export default function DownloadIsland() {
                 ))}
                 </span>
               </div>
-            </p>
+            </div>
             <ol ref={chatListRef} aria-live="polite" className="flex min-h-0 flex-1 list-none flex-col gap-3 overflow-y-auto px-4 py-4 text-xs scrollable-div">
               <li className="flex max-w-[92%] items-end gap-2 self-start">
                 <div className="rounded-2xl rounded-bl-md border border-white/[0.07] bg-white/[0.055] px-3.5 py-2.5 text-[11px] leading-[1.65] text-white/65">

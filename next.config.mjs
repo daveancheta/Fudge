@@ -5,8 +5,7 @@ const internalHost = process.env.TAURI_DEV_HOST || 'localhost';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Keep the development server dynamic so Better Auth can handle POST requests.
-  // The desktop bundle needs static files; Vercel needs a server build for API routes.
+  // The desktop bundle needs static files.
   output: isTauriBuild ? 'export' : undefined,
   // Note: This feature is required to use the Next.js Image component in SSG mode.
   // See https://nextjs.org/docs/messages/export-image-api for different workarounds.
