@@ -79,10 +79,15 @@ export default function Island() {
   const [message, setMessage] = useState("");
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [mediaPlayback, setMediaPlayback] = useState<MediaPlayback | null>(null);
+  const [listening, setListening] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandedRef = useRef(false);
   const mediaPointer = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
   const suppressMediaClick = useRef(false);
+  const speechRecognition = useRef<{ start: () => void; stop: () => void; abort: () => void; onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null } | null>(null);
+  const pushToTalkPressed = useRef(false);
+  const pushToTalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressPushToTalkClick = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
   const remoteCommandHandler = useRef<(message: SyncedChatMessage) => void>(() => undefined);
   const { data: session } = authClient.useSession();
@@ -263,6 +268,52 @@ export default function Island() {
     addMessage(trimmedMessage, "user", "island");
     setMessage("");
     await executeDesktopCommand(trimmedMessage);
+  };
+
+  const startPushToTalk = () => {
+    if (pushToTalkPressed.current) return;
+    pushToTalkPressed.current = true;
+    const SpeechRecognition = (window as Window & {
+      SpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
+      webkitSpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
+    }).SpeechRecognition ?? (window as Window & {
+      webkitSpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
+    }).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addMessage("Voice input isn't supported by this app version.", "assistant");
+      pushToTalkPressed.current = false;
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    speechRecognition.current = recognition;
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0]?.[0]?.transcript.trim();
+      if (!spokenText) return;
+      addMessage(spokenText, "user", "island");
+      void executeDesktopCommand(spokenText);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      speechRecognition.current = null;
+    };
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+      speechRecognition.current = null;
+    }
+  };
+
+  const stopPushToTalk = () => {
+    if (pushToTalkTimer.current) clearTimeout(pushToTalkTimer.current);
+    pushToTalkTimer.current = null;
+    if (!pushToTalkPressed.current) return;
+    pushToTalkPressed.current = false;
+    suppressPushToTalkClick.current = true;
+    speechRecognition.current?.stop();
   };
 
   return (
@@ -449,11 +500,26 @@ export default function Island() {
           type="button"
           aria-label={expanded ? "Collapse Dynamic Island" : "Expand Dynamic Island"}
           title={expanded ? "Collapse" : "Open"}
-          onClick={expanded ? collapse : () => void expand()}
+          onClick={() => {
+            if (suppressPushToTalkClick.current) {
+              suppressPushToTalkClick.current = false;
+              return;
+            }
+            if (expanded) collapse();
+            else void expand();
+          }}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            pushToTalkTimer.current = setTimeout(startPushToTalk, 350);
+          }}
+          onPointerUp={stopPushToTalk}
+          onPointerCancel={stopPushToTalk}
+          onLostPointerCapture={stopPushToTalk}
+          onContextMenu={(event) => event.preventDefault()}
           className="absolute z-20 flex size-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-[left,top] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
           style={{ left: expanded ? 520 : 78, top: expanded ? 8 : 6 }}
         >
-          <span aria-hidden="true" className="size-2 rounded-full bg-white" />
+          <span aria-hidden="true" className={`size-2 rounded-full ${listening ? "bg-[#d99476] shadow-[0_0_8px_#d99476]" : "bg-white"}`} />
         </button>}
       </section>
     </main>
