@@ -79,6 +79,7 @@ export default function Island() {
   const [message, setMessage] = useState("");
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [mediaPlayback, setMediaPlayback] = useState<MediaPlayback | null>(null);
+  const [pendingMusicApps, setPendingMusicApps] = useState<InstalledApp[]>([]);
   const [listening, setListening] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandedRef = useRef(false);
@@ -205,10 +206,79 @@ export default function Island() {
   }, [addMessage]);
 
   const executeDesktopCommand = useCallback(async (trimmedMessage: string, speakReplies = false) => {
+    const pendingChoice = pendingMusicApps.find((app) => trimmedMessage.toLocaleLowerCase().includes(app.name.toLocaleLowerCase()));
+    const yesToMusicApp = /^(?:yes|yeah|yep|sure|okay|ok|please do)[.!?]*$/i.test(trimmedMessage.trim());
+    if (pendingChoice || (yesToMusicApp && pendingMusicApps.length === 1)) {
+      const app = pendingChoice ?? pendingMusicApps[0];
+      setPendingMusicApps([]);
+      addAssistantReply(`Opening ${app.name}.`, speakReplies);
+      try {
+        await invoke<string>("launch_installed_app", { appId: app.id });
+      } catch (error) {
+        addAssistantReply(String(error), speakReplies);
+      }
+      return true;
+    }
+    if (pendingMusicApps.length > 1 && yesToMusicApp) {
+      addAssistantReply(`Which one should I open: ${pendingMusicApps.map((app) => app.name).join(", ")}?`, speakReplies);
+      return true;
+    }
+    if (pendingMusicApps.length && /^(?:no|nope|nah|not now|don't|do not)[.!?]*$/i.test(trimmedMessage.trim())) {
+      setPendingMusicApps([]);
+      addAssistantReply("Okay, I won't open it.", speakReplies);
+      return true;
+    }
+
     if (/^(?:please\s+)?(?:open|show|launch)\s+fudge\s+settings[.!?]*$/i.test(trimmedMessage)) {
       try {
         await invoke("open_settings");
         addAssistantReply("Opening Fudge settings.", speakReplies);
+      } catch (error) {
+        addAssistantReply(String(error), speakReplies);
+      }
+      return true;
+    }
+
+    const musicAction = /\b(?:play|resume)\b.*\b(?:music|song|track|playback|audio)\b/i.test(trimmedMessage)
+      ? "play"
+      : /\b(?:pause|stop)\b.*\b(?:music|song|track|playback|audio)\b/i.test(trimmedMessage)
+        ? "pause"
+      : /\b(?:next(?:\s+(?:track|song))?|skip(?:\s+(?:to\s+)?(?:the\s+)?(?:next\s+)?(?:track|song))?)\b/i.test(trimmedMessage)
+        ? "next"
+        : /\b(?:previous|prev|back)(?:\s+(?:track|song))?\b/i.test(trimmedMessage)
+          ? "previous"
+          : null;
+    if (musicAction) {
+      if (!mediaPlayback) {
+        if (musicAction === "play") {
+          const musicApps = installedApps.filter((app) => /spotify|youtube|apple music|amazon music|deezer|tidal|vlc|foobar|winamp|groove music|media player|itunes|music/i.test(app.name));
+          if (musicApps.length) {
+            setPendingMusicApps(musicApps);
+            addAssistantReply(`No media app is open. These music apps are installed: ${musicApps.map((app) => app.name).join(", ")}. Which one would you like me to open?`, speakReplies);
+          } else {
+            addAssistantReply("I can't find an open media app or an installed music player. Do you want me to help you find one?", speakReplies);
+          }
+        } else {
+          addAssistantReply("I can't find an open media app with music to control.", speakReplies);
+        }
+        return true;
+      }
+      if (musicAction === "play" && mediaPlayback.isPlaying) {
+        addAssistantReply("The music is already playing.", speakReplies);
+        return true;
+      }
+      if (musicAction === "pause" && !mediaPlayback.isPlaying) {
+        addAssistantReply("The music is already paused.", speakReplies);
+        return true;
+      }
+      const reply = musicAction === "pause" ? "Pausing the music."
+        : musicAction === "play" ? "Playing the music."
+          : musicAction === "next" ? "Skipping to the next track." : "Going to the previous track.";
+      addAssistantReply(reply, speakReplies);
+      try {
+        await invoke("control_media_session", { sourceId: mediaPlayback.sourceId, action: musicAction === "previous" || musicAction === "next" ? musicAction : "playPause" });
+        const nextPlayback = await invoke<MediaPlayback | null>("get_media_playback");
+        setMediaPlayback(nextPlayback);
       } catch (error) {
         addAssistantReply(String(error), speakReplies);
       }
@@ -258,7 +328,7 @@ export default function Island() {
       addAssistantReply(String(error), speakReplies);
     }
     return true;
-  }, [addAssistantReply, installedApps]);
+  }, [addAssistantReply, installedApps, mediaPlayback, pendingMusicApps]);
 
   useEffect(() => {
     remoteCommandHandler.current = (incoming) => {
