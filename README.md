@@ -4,9 +4,11 @@ Fudge is a Windows desktop island for music playback and quick app commands. Set
 
 ## Focus mode
 
-Start a session by typing or saying `start focus mode for <task>` in the island. Say or type `stop focus mode` to end it. Focus mode requests camera access only after activation, captures a low-resolution still every minute, and sends each still with the task through the hosted Meta proxy for visible distraction checks. The camera cannot see the user's screen, and ambiguous images do not trigger a nudge. The task goal and push-to-talk audio also go to Meta; audio is converted to a transcript and discarded. Fudge does not save camera stills. The transcript remains in the existing on-device chat history.
+Start a session by typing or saying `start focus mode for <task>` in the island. Say or type `stop focus mode` to end it. Focus mode asks whether to share a screen after the user enters a valid task; the system picker lets them choose a screen or window. Low-resolution camera stills, and screen stills if sharing is enabled, are captured every 15 seconds and sent with the task through the hosted Meta proxy for focus checks. Ambiguous images do not trigger a nudge; a screen clearly showing task-related content suppresses reminders. The task goal and push-to-talk audio also go to Meta; audio is converted to a transcript and discarded. Fudge does not save camera or screen stills. The transcript remains in the existing on-device chat history.
 
-The proxy uses Muse Voice Transcribe for push-to-talk, Muse Wonder for a short task plan, Muse Image for a generated visualization that Muse Spark turns into a spoken cue, and SAM 3.1 plus Muse Spark for visible distraction checks. The optional live camera preview is shown in the island, and reminders are spoken aloud.
+The proxy uses Muse Voice Transcribe for push-to-talk, Muse Wonder for a short task plan, Muse Image for a generated visualization that Muse Spark turns into a spoken cue, and SAM 3.1 plus Muse Spark for camera and screen focus checks. The optional live camera preview is shown in the island, screen sharing is controlled by the system picker, and reminders are spoken aloud.
+
+Users can also ask Fudge general questions. Asking it to read or scan the screen opens the system picker for a one-time capture unless screen sharing is already enabled in focus mode. That still and the question are sent to Meta for an answer; Fudge does not save the capture.
 
 ### Configure the hosted proxy
 
