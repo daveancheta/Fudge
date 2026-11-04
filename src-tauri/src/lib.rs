@@ -384,6 +384,27 @@ async fn open_settings(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+async fn reset_island_position(
+    app: tauri::AppHandle,
+    center_x: f64,
+    top_y: f64,
+) -> Result<(), String> {
+    use tauri::Manager;
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "The Fudge island window is unavailable.".to_string())?;
+    let size = window.outer_size().map_err(|error| error.to_string())?;
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    window
+        .set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
+            center_x - (size.width as f64 / scale) / 2.0,
+            top_y,
+        )))
+        .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -416,7 +437,8 @@ pub fn run() {
             close_installed_app,
             get_media_playback,
             control_media_session,
-            open_settings
+            open_settings,
+            reset_island_position
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

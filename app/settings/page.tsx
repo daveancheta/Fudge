@@ -1,6 +1,26 @@
 "use client";
 
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
+import { invoke } from "@tauri-apps/api/core";
+import { primaryMonitor } from "@tauri-apps/api/window";
+
+const POSITION_STORAGE_KEY = "fudge-island-position";
+const TOP_MARGIN = 6;
+
+async function resetIslandPosition() {
+  const monitor = await primaryMonitor();
+  if (!monitor) return;
+
+  const scale = monitor.scaleFactor;
+  const screenWidth = monitor.size.width / scale;
+  const screenLeft = monitor.position.x / scale;
+  const screenTop = monitor.position.y / scale;
+  const centerX = screenLeft + screenWidth / 2;
+  const topY = screenTop + TOP_MARGIN;
+
+  localStorage.removeItem(POSITION_STORAGE_KEY);
+  await invoke("reset_island_position", { centerX, topY });
+}
 
 export default function SettingsPage() {
   const { settings, saveSettings } = useFudgeSettings();
@@ -12,6 +32,14 @@ export default function SettingsPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Settings</h1>
       </header>
       <section className="space-y-5">
+        <div>
+          <h2 className="text-sm font-medium">Position</h2>
+          <p className="mt-1 text-xs text-white/45">Move the island back to the top center of your screen.</p>
+        </div>
+        <div className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
+          <span className="text-sm">Island position</span>
+          <button type="button" onClick={() => void resetIslandPosition()} className="rounded-lg border border-white/15 px-3 py-2 text-xs hover:bg-white/10">Reset to top center</button>
+        </div>
         <div>
           <h2 className="text-sm font-medium">Voice feedback</h2>
           <p className="mt-1 text-xs text-white/45">Choose whether Fudge speaks replies to voice commands.</p>
