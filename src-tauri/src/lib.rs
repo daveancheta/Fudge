@@ -408,6 +408,13 @@ async fn reset_island_position(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Focus Mode requests the camera only after the user explicitly starts it.
+        // Handle that request at the native webview boundary; leave other
+        // permission kinds to their default handling.
+        .on_permission_request(|_, kind| match kind {
+            tauri::webview::PermissionKind::Camera => tauri::webview::PermissionResponse::Allow,
+            _ => tauri::webview::PermissionResponse::Default,
+        })
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {

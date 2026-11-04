@@ -9,9 +9,11 @@ import {
 } from "@tauri-apps/api/window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ReactMarkdown from "react-markdown";
 import { ArrowUp, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { useFudgeSettings } from "@/lib/use-fudge-settings";
 import { useChatHistory } from "@/lib/use-chat-history";
+import { audioBlobToWav, focusRequest } from "@/lib/focus-ai";
 
 const COLLAPSED = { w: 180, h: 36 };
 const PLAYING = { w: 250, h: 44 };
@@ -19,6 +21,7 @@ const EXPANDED = { w: 560, h: 360 };
 const TOP_MARGIN = 6;
 const SCREEN_GAP = 8;
 const POSITION_STORAGE_KEY = "fudge-island-position";
+type FocusSetup = { step: "preview" | "agenda"; preview: boolean; speak: boolean };
 type InstalledApp = { id: string; name: string };
 type MediaPlayback = {
   title: string;
@@ -75,13 +78,27 @@ export default function Island() {
   const [mediaPlayback, setMediaPlayback] = useState<MediaPlayback | null>(null);
   const [pendingMusicApps, setPendingMusicApps] = useState<InstalledApp[]>([]);
   const [listening, setListening] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [focusPreview, setFocusPreview] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandedRef = useRef(false);
   const mediaPointer = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
   const suppressMediaClick = useRef(false);
-  const speechRecognition = useRef<{ start: () => void; stop: () => void; abort: () => void; onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null } | null>(null);
+  const voiceRecorder = useRef<MediaRecorder | null>(null);
+  const voiceStream = useRef<MediaStream | null>(null);
+  const voiceChunks = useRef<Blob[]>([]);
+  const focusVideo = useRef<HTMLVideoElement>(null);
+  const focusSetup = useRef<FocusSetup | null>(null);
+  const focusStream = useRef<MediaStream | null>(null);
+  const focusActiveRef = useRef(false);
+  const focusInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const focusInitialCheck = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusCheckInFlight = useRef(false);
+  const focusPhoneDetections = useRef(0);
+  const lastFocusNudge = useRef(0);
   const pushToTalkPressed = useRef(false);
   const pushToTalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceLimitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressPushToTalkClick = useRef(false);
   const chatListRef = useRef<HTMLOListElement>(null);
   const { settings } = useFudgeSettings();
@@ -93,7 +110,7 @@ export default function Island() {
   useEffect(() => {
     const list = chatListRef.current;
     if (expanded && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
-  }, [expanded, sentMessages]);
+  }, [expanded, sentMessages, thinking]);
 
 
   useEffect(() => {
@@ -152,6 +169,19 @@ export default function Island() {
     };
   }, []);
 
+  useEffect(() => () => {
+    if (focusInterval.current) clearInterval(focusInterval.current);
+    if (focusInitialCheck.current) clearTimeout(focusInitialCheck.current);
+    focusStream.current?.getTracks().forEach((track) => track.stop());
+    if (voiceLimitTimer.current) clearTimeout(voiceLimitTimer.current);
+    if (voiceRecorder.current?.state === "recording") {
+      voiceRecorder.current.onstop = null;
+      voiceRecorder.current.stop();
+    }
+    voiceStream.current?.getTracks().forEach((track) => track.stop());
+    window.speechSynthesis?.cancel();
+  }, []);
+
   useEffect(() => {
     if (expandedRef.current) return;
     const size = mediaPlayback ? PLAYING : COLLAPSED;
@@ -187,14 +217,178 @@ export default function Island() {
     }
   };
 
-  const addAssistantReply = useCallback((text: string, speak = false) => {
+  const addAssistantReply = useCallback((text: string, speak = settings.voiceFeedback) => {
     addMessage(text, "assistant");
     if (!speak || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-  }, [addMessage]);
+  }, [addMessage, settings.voiceFeedback]);
+
+  const stopFocusMode = useCallback((speak = false) => {
+    focusSetup.current = null;
+    focusActiveRef.current = false;
+    if (focusInterval.current) clearInterval(focusInterval.current);
+    if (focusInitialCheck.current) clearTimeout(focusInitialCheck.current);
+    focusInitialCheck.current = null;
+    focusInterval.current = null;
+    focusPhoneDetections.current = 0;
+    setFocusPreview(false);
+    focusStream.current?.getTracks().forEach((track) => track.stop());
+    focusStream.current = null;
+    if (focusVideo.current) focusVideo.current.srcObject = null;
+    addAssistantReply("Focus mode is off. Camera monitoring has stopped.", speak);
+  }, [addAssistantReply]);
+
+  const startFocusMode = useCallback(async (goal: string, preview: boolean, speak = false) => {
+    if (focusActiveRef.current) {
+      addAssistantReply("Focus mode is already on. Say ‘stop focus mode’ when you’re done.", speak);
+      return;
+    }
+    try {
+      const status = await focusRequest<{ configured: boolean }>({ action: "status" });
+      if (!status.configured) throw new Error("The hosted Meta proxy is missing META_API_KEY.");
+    } catch (error) {
+      addAssistantReply(error instanceof Error ? error.message : "The hosted focus service is unavailable.", speak);
+      return;
+    }
+    let stream: MediaStream;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera capture is unavailable in this app context.");
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 480 }, height: { ideal: 360 } },
+          audio: false,
+        });
+      } catch (error) {
+        // Some webcams cannot negotiate a low frame-rate constraint. Let the
+        // camera choose a supported mode; stills are sampled only every 30s.
+        if (error instanceof DOMException && error.name === "OverconstrainedError") {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      const reason = error instanceof DOMException ? error.name : "CameraUnavailable";
+      console.warn("Focus camera access was denied:", error);
+      const guidance = reason === "NotAllowedError"
+        ? "Allow camera access for desktop apps in Windows Privacy settings, then restart Fudge."
+        : reason === "NotFoundError"
+          ? "Connect or enable a camera, then try again."
+          : reason === "NotReadableError"
+            ? "The camera may be in use by another app. Close that app and try again."
+            : reason === "OverconstrainedError"
+              ? "The camera could not use a supported video mode."
+              : "Check that a camera is connected and enabled for desktop apps in Windows Privacy settings.";
+      addAssistantReply(`I couldn’t access the camera (${reason}). ${guidance}`, speak);
+      return;
+    }
+    focusStream.current = stream;
+    focusActiveRef.current = true;
+    setFocusPreview(preview);
+    if (focusVideo.current) {
+      focusVideo.current.srcObject = stream;
+      await focusVideo.current.play().catch(() => undefined);
+    }
+
+    addAssistantReply(`Focus mode is on${preview ? " with camera preview" : ""}. Every minute, a camera still and your task go to Meta for a focus check and plan. The camera cannot see your screen, so checks only react to clear visible distractions. Put your phone out of reach, set aside unrelated distractions, and take one step at a time. Say ‘stop focus mode’ to stop camera monitoring.`, speak);
+    const task = goal.trim().slice(0, 240) || "Stay focused on my task";
+    const results = await Promise.allSettled([
+      focusRequest<{ plan: string }>({ action: "plan", goal: task }),
+      focusRequest<{ cue: string }>({ action: "image-cue", goal: task }),
+    ]);
+    if (!focusActiveRef.current) return;
+    const plan = results[0].status === "fulfilled" ? results[0].value.plan : "Take one small step, then continue with the next.";
+    const cue = results[1].status === "fulfilled" ? results[1].value.cue : "Take a breath, settle in, and begin with one clear step.";
+    addAssistantReply(`Your focus plan: ${plan} ${cue}`, speak);
+
+    const checkFocus = async () => {
+      const video = focusVideo.current;
+      if (!focusActiveRef.current || focusCheckInFlight.current || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = 480;
+      canvas.height = 360;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = canvas.toDataURL("image/jpeg", 0.55);
+      focusCheckInFlight.current = true;
+      try {
+        const result = await focusRequest<{ offTask: boolean; reason: string }>({ action: "observe", image, goal: task });
+        if (!focusActiveRef.current) return;
+        focusPhoneDetections.current = result.offTask ? focusPhoneDetections.current + 1 : 0;
+        const now = Date.now();
+        if (focusPhoneDetections.current >= 1 && now - lastFocusNudge.current > 60_000) {
+          lastFocusNudge.current = now;
+          focusPhoneDetections.current = 0;
+          const activity = result.reason ? `I can see ${result.reason}. ` : "";
+          addAssistantReply(`${activity}Come on, you chose “${task}” for this session. Put the distraction aside and get back to it. Take one step now.`, settings.voiceFeedback);
+        }
+      } catch (error) {
+        console.warn("Focus camera check did not complete:", error);
+      } finally {
+        focusCheckInFlight.current = false;
+      }
+    };
+    focusInitialCheck.current = setTimeout(() => void checkFocus(), 60_000);
+    focusInterval.current = setInterval(() => void checkFocus(), 60_000);
+  }, [addAssistantReply, settings.voiceFeedback]);
 
   const executeDesktopCommand = useCallback(async (trimmedMessage: string, speakReplies = false) => {
+    const focusOff = /^(?:please\s+)?(?:stop|end|disable|turn off)\s+(?:the\s+)?focus(?:\s+mode)?[.!?]*$/i.test(trimmedMessage.trim());
+    if (focusOff) {
+      if (focusActiveRef.current) stopFocusMode(speakReplies);
+      else addAssistantReply("Focus mode is already off.", speakReplies);
+      return true;
+    }
+    const focusOn = trimmedMessage.trim().match(/^(?:please\s+)?(?:start|activate|enable|turn on)\s+(?:the\s+)?focus(?:\s+mode)?(?:\s+(?:for|on)\s+(.+?))?[.!?]*$/i)
+      ?? trimmedMessage.trim().match(/^focus mode(?:\s+(?:for|on)\s+(.+?))?[.!?]*$/i);
+    if (focusOn) {
+      if (focusActiveRef.current) {
+        addAssistantReply("Focus mode is already on. Say ‘stop focus mode’ when you’re done.", speakReplies);
+      } else {
+        focusSetup.current = { step: "preview", preview: false, speak: speakReplies };
+        addAssistantReply("Would you like a live camera preview while focus mode is on? Reply yes or no. Either way, focus mode sends a camera still and your task to Meta every minute for distraction checks. The camera cannot see your screen. Reply no to continue without the preview, or stop focus mode to cancel camera checks.", speakReplies);
+      }
+      return true;
+    }
+    if (focusSetup.current) {
+      const setup = focusSetup.current;
+      if (setup.step === "preview") {
+        const yes = /^(?:yes|yeah|yep|sure|okay|ok|please do)[.!?]*$/i.test(trimmedMessage);
+        const no = /^(?:no|nope|nah|not now|don't|do not)[.!?]*$/i.test(trimmedMessage);
+        if (!yes && !no) {
+          addAssistantReply("Please reply yes or no about showing the camera preview.", setup.speak);
+          return true;
+        }
+        setup.preview = yes;
+        setup.step = "agenda";
+        addAssistantReply("What task or agenda should we focus on? This is required to start focus mode. For example, ‘study for my biology quiz’, ‘tidy the kitchen’, or ‘finish my budget’. I’ll remind you to put your phone away and return to that task.", setup.speak);
+        return true;
+      }
+      if (!trimmedMessage.trim() || /^(?:skip|none|nothing|not sure|i don't know|idk)[.!?]*$/i.test(trimmedMessage.trim())) {
+        addAssistantReply("Please enter a specific task before focus mode can start. For example, ‘read two chapters’, ‘water the plants’, or ‘prepare my presentation’.", setup.speak);
+        return true;
+      }
+      try {
+        const validation = await focusRequest<{ valid: boolean; clarification: string }>({
+          action: "validate-goal",
+          goal: trimmedMessage.trim().slice(0, 300),
+        });
+        if (!validation.valid) {
+          addAssistantReply(validation.clarification || "What task should we focus on?", setup.speak);
+          return true;
+        }
+      } catch (error) {
+        addAssistantReply(error instanceof Error ? error.message : "I couldn't check that agenda. Please try again.", setup.speak);
+        return true;
+      }
+      focusSetup.current = null;
+      await startFocusMode(trimmedMessage, setup.preview, setup.speak);
+      return true;
+    }
     const pendingChoice = pendingMusicApps.find((app) => trimmedMessage.toLocaleLowerCase().includes(app.name.toLocaleLowerCase()));
     const yesToMusicApp = /^(?:yes|yeah|yep|sure|okay|ok|please do)[.!?]*$/i.test(trimmedMessage.trim());
     if (pendingChoice || (yesToMusicApp && pendingMusicApps.length === 1)) {
@@ -317,7 +511,7 @@ export default function Island() {
       addAssistantReply(String(error), speakReplies);
     }
     return true;
-  }, [addAssistantReply, installedApps, mediaPlayback, pendingMusicApps]);
+  }, [addAssistantReply, installedApps, mediaPlayback, pendingMusicApps, startFocusMode, stopFocusMode]);
 
   const sendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -325,53 +519,93 @@ export default function Island() {
     if (!trimmedMessage) return;
     addMessage(trimmedMessage, "user");
     setMessage("");
-    await executeDesktopCommand(trimmedMessage);
+    setThinking(true);
+    try {
+      await executeDesktopCommand(trimmedMessage, settings.voiceFeedback);
+    } finally {
+      setThinking(false);
+    }
   };
 
   const startPushToTalk = () => {
     if (pushToTalkPressed.current) return;
     pushToTalkPressed.current = true;
-    const SpeechRecognition = (window as Window & {
-      SpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
-      webkitSpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
-    }).SpeechRecognition ?? (window as Window & {
-      webkitSpeechRecognition?: new () => NonNullable<typeof speechRecognition.current>;
-    }).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      addMessage("Voice input isn't supported by this app version.", "assistant");
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      addAssistantReply("Voice input isn’t supported by this app version.");
       pushToTalkPressed.current = false;
       return;
     }
-
-    const recognition = new SpeechRecognition();
-    speechRecognition.current = recognition;
-    recognition.onresult = (event) => {
-      const spokenText = event.results[0]?.[0]?.transcript.trim();
-      if (!spokenText) return;
-      addMessage(spokenText, "user");
-      void executeDesktopCommand(spokenText, settings.voiceFeedback);
-    };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => {
-      setListening(false);
-      speechRecognition.current = null;
-    };
-    try {
-      recognition.start();
+    void navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      if (!pushToTalkPressed.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      voiceStream.current = stream;
+      voiceChunks.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      voiceRecorder.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size) voiceChunks.current.push(event.data); };
+      recorder.onstop = () => {
+        setListening(false);
+        if (voiceLimitTimer.current) clearTimeout(voiceLimitTimer.current);
+        voiceLimitTimer.current = null;
+        const recording = new Blob(voiceChunks.current, { type: recorder.mimeType || "audio/webm" });
+        voiceChunks.current = [];
+        void (async () => {
+          setThinking(true);
+          try {
+            if (recording.size < 1500) return;
+            const wav = await audioBlobToWav(recording);
+            const reader = new FileReader();
+            const audio = await new Promise<string>((resolve, reject) => {
+              reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read the recording."));
+              reader.onerror = () => reject(new Error("Could not read the recording."));
+              reader.readAsDataURL(wav);
+            });
+            const result = await focusRequest<{ transcript: string }>({ action: "transcribe", audio, mimeType: "audio/wav" });
+            const spokenText = result.transcript.trim();
+            if (!spokenText) return;
+            addMessage(spokenText, "user");
+            await executeDesktopCommand(spokenText, settings.voiceFeedback);
+          } catch (error) {
+            addAssistantReply(error instanceof Error ? error.message : "Voice transcription failed.", settings.voiceFeedback);
+          } finally {
+            setThinking(false);
+          }
+        })();
+        voiceStream.current?.getTracks().forEach((track) => track.stop());
+        voiceStream.current = null;
+        voiceRecorder.current = null;
+      };
+      recorder.start();
       setListening(true);
-    } catch {
+      voiceLimitTimer.current = setTimeout(() => {
+        if (recorder.state === "recording") recorder.stop();
+      }, 20_000);
+    }).catch(() => {
       setListening(false);
-      speechRecognition.current = null;
-    }
+      pushToTalkPressed.current = false;
+      voiceStream.current?.getTracks().forEach((track) => track.stop());
+      voiceStream.current = null;
+      addAssistantReply("I couldn’t access the microphone. Allow microphone access, then try again.");
+    });
   };
 
   const stopPushToTalk = () => {
     if (pushToTalkTimer.current) clearTimeout(pushToTalkTimer.current);
     pushToTalkTimer.current = null;
+    if (voiceLimitTimer.current) clearTimeout(voiceLimitTimer.current);
+    voiceLimitTimer.current = null;
     if (!pushToTalkPressed.current) return;
     pushToTalkPressed.current = false;
     suppressPushToTalkClick.current = true;
-    speechRecognition.current?.stop();
+    setListening(false);
+    if (voiceRecorder.current?.state === "recording") voiceRecorder.current.stop();
+    else {
+      voiceStream.current?.getTracks().forEach((track) => track.stop());
+      voiceStream.current = null;
+    }
   };
 
   return (
@@ -390,6 +624,7 @@ export default function Island() {
             : "height 280ms cubic-bezier(0.32,0.72,0,1), width 320ms 280ms cubic-bezier(0.32,0.72,0,1), border-radius 500ms cubic-bezier(0.32,0.72,0,1)",
         }}
       >
+        <video ref={focusVideo} aria-label="Live camera preview" tabIndex={-1} muted playsInline className={focusPreview && expanded ? "absolute right-12 top-2 z-10 h-[54px] w-[72px] rounded-lg border border-white/20 bg-black object-cover" : "hidden"} />
         {expanded ? (
           <>
             <header className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-5 py-3.5">
@@ -453,9 +688,28 @@ export default function Island() {
                     ? "self-end rounded-br-md bg-[#d99476] text-[#211e1a]"
                     : "self-start rounded-bl-md border border-white/[0.08] bg-white/[0.045] text-white/75"}`}
                 >
-                  {sentMessage.text}
+                  {sentMessage.from === "assistant" ? (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ ...props }) => <p className="mb-1 last:mb-0" {...props} />,
+                        ul: ({ ...props }) => <ul className="my-1 list-disc space-y-0.5 pl-4" {...props} />,
+                        ol: ({ ...props }) => <ol className="my-1 list-decimal space-y-0.5 pl-4" {...props} />,
+                        li: ({ ...props }) => <li className="pl-0.5" {...props} />,
+                        strong: ({ ...props }) => <strong className="font-semibold text-white/95" {...props} />,
+                        a: ({ ...props }) => <a className="text-[#e3a58a] underline underline-offset-2" target="_blank" rel="noreferrer" {...props} />,
+                        code: ({ className, ...props }) => <code className={`rounded bg-black/20 px-1 py-0.5 font-mono text-[10px] ${className ?? ""}`} {...props} />,
+                      }}
+                    >
+                      {sentMessage.text}
+                    </ReactMarkdown>
+                  ) : sentMessage.text}
                 </li>
               ))}
+              {thinking && (
+                <li role="status" aria-live="polite" className="max-w-[86%] self-start rounded-2xl rounded-bl-md border border-white/[0.08] bg-white/[0.045] px-3.5 py-2.5 text-[11px] text-white/45">
+                  Fudge is thinking…
+                </li>
+              )}
             </ol>
 
             <form onSubmit={sendMessage} className="shrink-0 border-t border-white/[0.08] px-4 pb-3.5 pt-3">
