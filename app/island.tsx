@@ -349,7 +349,7 @@ export default function Island() {
       const spokenText = event.results[0]?.[0]?.transcript.trim();
       if (!spokenText) return;
       addMessage(spokenText, "user");
-      void executeDesktopCommand(spokenText, true);
+      void executeDesktopCommand(spokenText, settings.voiceFeedback);
     };
     recognition.onerror = () => setListening(false);
     recognition.onend = () => {

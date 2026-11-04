@@ -13,6 +13,14 @@ export default function SettingsPage() {
       </header>
       <section className="space-y-5">
         <div>
+          <h2 className="text-sm font-medium">Voice feedback</h2>
+          <p className="mt-1 text-xs text-white/45">Choose whether Fudge speaks replies to voice commands.</p>
+        </div>
+        <label className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
+          <span><span className="block text-sm">Speak replies</span><span className="mt-1 block text-xs text-white/45">Turn spoken responses on or off</span></span>
+          <input type="checkbox" checked={settings.voiceFeedback} onChange={(event) => saveSettings({ ...settings, voiceFeedback: event.target.checked })} className="size-4 accent-white" />
+        </label>
+        <div>
           <h2 className="text-sm font-medium">Music wave</h2>
           <p className="mt-1 text-xs text-white/45">Choose how the island looks while music is playing.</p>
         </div>
