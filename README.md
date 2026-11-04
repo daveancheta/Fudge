@@ -10,6 +10,8 @@ The proxy uses Muse Voice Transcribe for push-to-talk, Muse Wonder for a short t
 
 Users can also ask Fudge general questions. Asking it to read or scan the screen opens the system picker for a one-time capture unless screen sharing is already enabled in focus mode. That still and the question are sent to Meta for an answer; Fudge does not save the capture.
 
+Questions about current events and explicit web searches are sent to Bing RSS search. Fudge summarizes the returned result titles and snippets with Meta, then opens the top result in the default browser. If the feed is unavailable, it opens Bing search results instead.
+
 ### Configure the hosted proxy
 
 - Set `META_API_KEY` in the Vercel project’s server environment. Keep it off the client and out of the desktop bundle.

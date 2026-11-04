@@ -1,4 +1,4 @@
-type FocusAction = "observe" | "plan" | "image-cue" | "transcribe" | "status" | "validate-goal" | "chat";
+type FocusAction = "observe" | "plan" | "image-cue" | "transcribe" | "status" | "validate-goal" | "chat" | "web-search";
 
 function proxyUrl() {
   if (process.env.NEXT_PUBLIC_FOCUS_PROXY_URL) return process.env.NEXT_PUBLIC_FOCUS_PROXY_URL;

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   getCurrentWindow,
   primaryMonitor,
@@ -418,7 +418,7 @@ export default function Island() {
     focusInterval.current = setInterval(() => void checkFocus(), FOCUS_SCAN_INTERVAL_MS);
   }, [addAssistantReply, settings.voiceFeedback]);
 
-  const executeDesktopCommand = useCallback(async (trimmedMessage: string, speakReplies = false) => {
+  const executeDesktopCommand = useCallback(async (trimmedMessage: string, speakReplies = false, navigationTab: Window | null = null) => {
     const focusOff = /^(?:please\s+)?(?:stop|end|disable|turn off)\s+(?:the\s+)?focus(?:\s+mode)?[.!?]*$/i.test(trimmedMessage.trim());
     if (focusOff) {
       if (focusActiveRef.current) stopFocusMode(speakReplies);
@@ -612,12 +612,71 @@ export default function Island() {
             : "I couldn't capture the screen. Ask again and choose a screen in the system picker.", speakReplies);
           return true;
         }
+        try {
+          const result = await focusRequest<{ answer: string }>({ action: "chat", question: trimmedMessage, image });
+          addAssistantReply(result.answer || "I couldn't come up with an answer. Could you rephrase the question?", speakReplies);
+        } catch (error) {
+          addAssistantReply(error instanceof Error ? error.message : "I couldn't answer that right now.", speakReplies);
+        }
+        return true;
+      }
+      const asksQuestion = /\?\s*$/.test(trimmedMessage)
+        || /^(?:what|who|where|when|why|how|which|is|are|am|can|could|should|does|do|did|will|would|has|have|was|were)\b/i.test(trimmedMessage)
+        || /\b(?:search (?:the )?(?:web|internet)|look up|browse the web|find online|news|headlines|current events|latest|today|right now|this week|recent)\b/i.test(trimmedMessage);
+      if (!asksQuestion) {
+        try {
+          const result = await focusRequest<{ answer: string }>({ action: "chat", question: trimmedMessage });
+          addAssistantReply(result.answer || "I couldn't come up with an answer. Could you rephrase that?", speakReplies);
+        } catch (error) {
+          addAssistantReply(error instanceof Error ? error.message : "I couldn't answer that right now.", speakReplies);
+        }
+        return true;
       }
       try {
-        const result = await focusRequest<{ answer: string }>({ action: "chat", question: trimmedMessage, ...(image ? { image } : {}) });
-        addAssistantReply(result.answer || "I couldn't come up with an answer. Could you rephrase the question?", speakReplies);
+        const result = await focusRequest<{
+          answer: string;
+          sources: Array<{ title: string; url: string; published?: string }>;
+          searchUrl: string;
+          navigate: boolean;
+        }>({ action: "web-search", question: trimmedMessage });
+        let opened = false;
+        if (!result.navigate && navigationTab && !navigationTab.closed) navigationTab.close();
+        if (result.navigate) {
+          const destination = result.sources[0]?.url ?? result.searchUrl;
+          try {
+            if (isTauri()) await invoke("open_external_url", { url: destination });
+            else if (navigationTab && !navigationTab.closed) navigationTab.location.href = destination;
+            else if (window.open(destination, "_blank", "noopener,noreferrer")) opened = true;
+            opened = opened || isTauri() || Boolean(navigationTab && !navigationTab.closed);
+          } catch (error) {
+            console.warn("Could not open the web page in the browser:", error);
+            try {
+              if (isTauri()) await invoke("open_external_url", { url: result.searchUrl });
+              else if (navigationTab && !navigationTab.closed) navigationTab.location.href = result.searchUrl;
+              else if (window.open(result.searchUrl, "_blank", "noopener,noreferrer")) opened = true;
+              opened = opened || isTauri() || Boolean(navigationTab && !navigationTab.closed);
+            } catch (fallbackError) {
+              console.warn("Could not open the web search page:", fallbackError);
+            }
+          }
+        }
+        const browserNote = !result.navigate ? ""
+          : opened
+            ? result.sources.length ? `\n\nOpened ${result.sources[0].title} in your browser.` : "\n\nI opened a web search in your browser."
+            : result.sources.length ? `\n\nI couldn't open ${result.sources[0].title} automatically.` : "\n\nI couldn't open the web search automatically.";
+        addAssistantReply(`${result.answer}${browserNote}`, speakReplies);
       } catch (error) {
-        addAssistantReply(error instanceof Error ? error.message : "I couldn't answer that right now.", speakReplies);
+        const searchPage = `https://www.bing.com/search?q=${encodeURIComponent(trimmedMessage)}`;
+        let opened = false;
+        try {
+          if (isTauri()) await invoke("open_external_url", { url: searchPage });
+          else if (navigationTab && !navigationTab.closed) navigationTab.location.href = searchPage;
+          else if (window.open(searchPage, "_blank", "noopener,noreferrer")) opened = true;
+          opened = opened || isTauri() || Boolean(navigationTab && !navigationTab.closed);
+        } catch (openError) {
+          console.warn("Could not open the fallback web search:", openError);
+        }
+        addAssistantReply(`${error instanceof Error ? error.message : "I couldn't search the web right now."}${opened ? " I opened the search results in your browser so you can still check them." : ""}`, speakReplies);
       }
       return true;
     }
@@ -647,11 +706,18 @@ export default function Island() {
     event.preventDefault();
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
+    const isQuestion = /\?\s*$/.test(trimmedMessage)
+      || /^(?:what|who|where|when|why|how|which|is|are|am|can|could|should|does|do|did|will|would|has|have|was|were)\b/i.test(trimmedMessage)
+      || /\b(?:search (?:the )?(?:web|internet)|look up|browse the web|find online|news|headlines|current events|latest|today|right now|this week|recent)\b/i.test(trimmedMessage);
+    const isScreenQuestion = /\b(?:read|scan|inspect|look at|describe|summarize|what(?:'s| is) on)\b.*\b(?:screen|display|window)\b|\b(?:screen|display)\b.*\b(?:show|say|read|content)\b/i.test(trimmedMessage);
+    const searchPage = `https://www.bing.com/search?q=${encodeURIComponent(trimmedMessage)}`;
+    const navigationTab = isQuestion && !isScreenQuestion && !isTauri() ? window.open(searchPage, "_blank") : null;
+    if (navigationTab) navigationTab.opener = null;
     addMessage(trimmedMessage, "user");
     setMessage("");
     setThinking(true);
     try {
-      await executeDesktopCommand(trimmedMessage, settings.voiceFeedback);
+      await executeDesktopCommand(trimmedMessage, settings.voiceFeedback, navigationTab);
     } finally {
       setThinking(false);
     }
@@ -816,7 +882,7 @@ export default function Island() {
               <li className="flex max-w-[92%] items-end gap-2 self-start">
                 <div className="rounded-2xl rounded-bl-md border border-white/[0.08] bg-white/[0.035] px-3.5 py-3 text-[11px] leading-[1.65] text-white/55">
                   <p className="mb-1.5 text-[15px] font-medium tracking-[-.03em] text-white/90">What can I help with?</p>
-                  Ask me a question, or ask me to read your screen. Screen scans use a still you select in the system picker, which is sent to Meta to answer. I can also open or close apps, like <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;open Chrome&quot;</span>.
+                  Ask a question, search the web for today’s news, or ask me to read your screen. Screen scans use a still you select in the system picker, which is sent to Meta to answer. I can also open or close apps, like <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-medium text-white/85">&quot;open Chrome&quot;</span>.
                 </div>
               </li>
               {sentMessages.map((sentMessage, index) => (
