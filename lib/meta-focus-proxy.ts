@@ -68,7 +68,9 @@ async function metaResponses(model: string, input: unknown) {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, input }),
-    signal: AbortSignal.timeout(25_000),
+    // Focus validation and multimodal checks can take longer than a typical
+    // short chat response. Leave room inside the route's 120-second limit.
+    signal: AbortSignal.timeout(55_000),
   });
   if (!response.ok) throw new Error(`Meta API request failed (${response.status}).`);
   const body = await response.json() as { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
@@ -89,7 +91,7 @@ async function imageCue(goal: string) {
       output_format: "jpeg",
       size: "512x512",
     }),
-    signal: AbortSignal.timeout(40_000),
+    signal: AbortSignal.timeout(50_000),
   });
   if (!response.ok) throw new Error(`Muse Image request failed (${response.status}).`);
   const body = await response.json() as { data?: Array<{ b64_json?: string }> };

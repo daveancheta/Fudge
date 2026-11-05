@@ -135,6 +135,7 @@ export default function Island() {
   const focusCheckInFlight = useRef(false);
   const focusPhoneDetections = useRef(0);
   const lastFocusNudge = useRef(0);
+  const lastFocusCheckWarning = useRef(0);
   const pushToTalkPressed = useRef(false);
   const pushToTalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceLimitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -367,14 +368,15 @@ export default function Island() {
 
     addAssistantReply(`Focus mode is on${preview ? " with camera preview" : ""}${sharedScreen ? " with screen checks" : ""}. Every 15 seconds, ${sharedScreen ? "camera and shared-screen stills" : "a camera still"} plus your task go to Meta for a focus check. If your screen clearly shows you're on task, I won't interrupt you. Say ‘stop focus mode’ to stop monitoring.`, speak);
     const task = goal.trim().slice(0, 240) || "Stay focused on my task";
-    const results = await Promise.allSettled([
+    void Promise.allSettled([
       focusRequest<{ plan: string }>({ action: "plan", goal: task }),
       focusRequest<{ cue: string }>({ action: "image-cue", goal: task }),
-    ]);
-    if (!focusActiveRef.current) return;
-    const plan = results[0].status === "fulfilled" ? results[0].value.plan : "Take one small step, then continue with the next.";
-    const cue = results[1].status === "fulfilled" ? results[1].value.cue : "Take a breath, settle in, and begin with one clear step.";
-    addAssistantReply(`Your focus plan: ${plan} ${cue}`, speak);
+    ]).then((results) => {
+      if (!focusActiveRef.current) return;
+      const plan = results[0].status === "fulfilled" ? results[0].value.plan : "Take one small step, then continue with the next.";
+      const cue = results[1].status === "fulfilled" ? results[1].value.cue : "Take a breath, settle in, and begin with one clear step.";
+      addAssistantReply(`Your focus plan: ${plan} ${cue}`, speak);
+    });
 
     const checkFocus = async () => {
       const videos = [
@@ -399,6 +401,14 @@ export default function Island() {
           focusRequest<{ offTask: boolean; onTask: boolean; reason: string }>({ action: "observe", image, goal: task, source }),
         ));
         if (!focusActiveRef.current) return;
+        if (results.every((item) => item.status === "rejected")) {
+          const now = Date.now();
+          if (now - lastFocusCheckWarning.current > 60_000) {
+            lastFocusCheckWarning.current = now;
+            addAssistantReply("I couldn't reach the focus-check service. I'll keep the session running and retry; check your internet connection and the server API key.", settings.voiceFeedback);
+          }
+          return;
+        }
         const screenShowsOnTask = results.some((item) => item.status === "fulfilled" && item.value.onTask);
         const result = screenShowsOnTask ? undefined : results.find((item) => item.status === "fulfilled" && item.value.offTask);
         focusPhoneDetections.current = result?.status === "fulfilled" ? focusPhoneDetections.current + 1 : 0;
@@ -411,6 +421,11 @@ export default function Island() {
         }
       } catch (error) {
         console.warn("Focus camera check did not complete:", error);
+        const now = Date.now();
+        if (focusActiveRef.current && now - lastFocusCheckWarning.current > 60_000) {
+          lastFocusCheckWarning.current = now;
+          addAssistantReply("I couldn't complete a focus check. I'll keep the session running and retry; check your internet connection and the server API key.", settings.voiceFeedback);
+        }
       } finally {
         focusCheckInFlight.current = false;
       }
@@ -489,8 +504,8 @@ export default function Island() {
           return true;
         }
       } catch (error) {
-        addAssistantReply(error instanceof Error ? error.message : "I couldn't check that agenda. Please try again.", setup.speak);
-        return true;
+        console.warn("Focus task validation is unavailable; continuing with the entered task:", error);
+        addAssistantReply("I couldn't verify the task just now, but I'll use it as entered.", setup.speak);
       }
       setup.goal = trimmedMessage.trim();
       setup.step = "screen";

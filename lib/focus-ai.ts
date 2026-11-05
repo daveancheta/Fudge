@@ -1,11 +1,11 @@
 type FocusAction = "observe" | "plan" | "image-cue" | "transcribe" | "status" | "validate-goal" | "chat" | "web-search";
 
 function proxyUrl() {
-  if (process.env.NEXT_PUBLIC_FOCUS_PROXY_URL) return process.env.NEXT_PUBLIC_FOCUS_PROXY_URL;
   if (typeof window !== "undefined" && window.location.protocol.startsWith("http")
     && window.location.host !== "tauri.localhost") {
     return `${window.location.origin}/api/focus`;
   }
+  if (process.env.NEXT_PUBLIC_FOCUS_PROXY_URL) return process.env.NEXT_PUBLIC_FOCUS_PROXY_URL;
   throw new Error("Set NEXT_PUBLIC_FOCUS_PROXY_URL to your hosted /api/focus endpoint before building the desktop app.");
 }
 
@@ -14,7 +14,7 @@ export async function focusRequest<T>(body: { action: FocusAction; [key: string]
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(75_000),
+    signal: AbortSignal.timeout(115_000),
   });
   let data: T & { error?: string };
   try {
