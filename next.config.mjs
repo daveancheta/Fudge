@@ -5,6 +5,9 @@ const internalHost = process.env.TAURI_DEV_HOST || 'localhost';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The desktop export omits request-time API routes. Exclude stale development
+  // route validators while building that route-free bundle.
+  ...(isTauriBuild ? { typescript: { tsconfigPath: "tsconfig.tauri.json" } } : {}),
   // The desktop bundle needs static files.
   output: isTauriBuild ? 'export' : undefined,
   // Note: This feature is required to use the Next.js Image component in SSG mode.
