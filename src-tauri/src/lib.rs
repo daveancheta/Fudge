@@ -405,10 +405,31 @@ async fn reset_island_position(
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let parsed = tauri::Url::parse(&url).map_err(|error| format!("Invalid website URL: {error}"))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("Only HTTP and HTTPS websites can be opened.".to_string());
+    }
+    app.opener()
+        .open_url(parsed.to_string(), None::<&str>)
+        .map_err(|error| format!("Could not open website: {error}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Focus Mode requests the camera only after the user explicitly starts it.
+        // Handle that request at the native webview boundary; leave other
+        // permission kinds to their default handling.
+        .on_permission_request(|_, kind| match kind {
+            tauri::webview::PermissionKind::Camera => tauri::webview::PermissionResponse::Allow,
+            _ => tauri::webview::PermissionResponse::Default,
+        })
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_always_on_top(true)?;
@@ -438,7 +459,8 @@ pub fn run() {
             get_media_playback,
             control_media_session,
             open_settings,
-            reset_island_position
+            reset_island_position,
+            open_external_url
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
