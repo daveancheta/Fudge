@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowDownToLine, AudioLines, Check, Download } from "lucide-react";
+import { ArrowDownToLine, AudioLines, Check, Download, ArrowUpRight } from "lucide-react";
 import DownloadIsland from "./download-island";
 
 export const metadata: Metadata = {
@@ -42,10 +42,14 @@ export default function DownloadPage() {
           </span>
           <span className="text-[19px] font-semibold tracking-[-.055em]">fudge</span>
         </a>
-        <span className="rounded-full px-3 py-2 text-[12px] font-medium text-[#777168]">For Windows</span>
+        <nav aria-label="Page navigation" className="flex items-center gap-5 text-[12px] text-[#777168] sm:gap-7">
+          <a href="#about" className="transition-colors hover:text-[#27251f]">About</a>
+          <a href="#features" className="transition-colors hover:text-[#27251f]">Features</a>
+          <a href="#download" className="inline-flex items-center gap-1.5 rounded-full bg-[#292722] px-4 py-2.5 font-medium text-white transition-colors hover:bg-[#514a41]">Get Fudge <ArrowUpRight aria-hidden="true" className="size-3.5" /></a>
+        </nav>
       </header>
 
-      <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 pb-14 pt-8 text-center sm:px-9 sm:pb-20 sm:pt-12">
+      <section id="download" className="mx-auto flex w-full max-w-5xl flex-col items-center px-5 pb-14 pt-8 text-center sm:px-9 sm:pb-20 sm:pt-12">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#e8dfd4] bg-white/65 px-3.5 py-2 text-[10px] font-semibold tracking-[.14em] text-[#87796c] shadow-[0_3px_12px_rgba(74,55,30,.04)] backdrop-blur">
           <span className="size-1.5 rounded-full bg-[#88a27d]" />
           VERSION 0.1.0 <span className="text-[#d2c5b7]">/</span> WINDOWS
@@ -57,7 +61,7 @@ export default function DownloadPage() {
           in your <span className="italic text-[#b8785d]">flow.</span>
         </h1>
         <p className="mt-6 max-w-lg text-[14px] leading-7 text-[#777168] sm:text-[16px]">
-          Fudge brings your favorite apps and what’s playing into one quiet, useful spot on your desktop.
+          A small Windows companion for focus sessions, everyday questions, and the things you keep close while you work.
         </p>
 
         <div className="mt-11 grid w-full max-w-[760px] gap-3 text-left sm:mt-14 sm:grid-cols-2 sm:gap-4">
@@ -105,6 +109,77 @@ export default function DownloadPage() {
           <span className="hidden size-1 rounded-full bg-[#d4c9bc] sm:block" />
           <span>Choose the setup file for a guided install</span>
         </div>
+      </section>
+
+      <section id="about" className="border-y border-[#e8e1d8] bg-[#efe9df] px-5 py-16 sm:px-9 sm:py-24">
+        <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[.8fr_1.2fr] md:gap-16">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.18em] text-[#a8775c]">A DESKTOP FOCUS COMPANION</p>
+            <h2 className="mt-4 text-4xl font-medium leading-[1.02] tracking-[-.065em] sm:text-5xl">What is Fudge?</h2>
+          </div>
+          <div className="max-w-2xl text-[14px] leading-7 text-[#777168] sm:text-[15px]">
+            <p>Fudge is a Windows desktop companion built around one simple idea: make it easier to return to what you meant to be doing. It lives in a small island above your other windows, ready when you need it.</p>
+            <p className="mt-4">Focus Mode is the heart of Fudge. Set a task, get a short plan, and work at your own pace. If you opt in, Fudge can check camera and shared-screen snapshots for clear signs of distraction and offer a gentle reminder. You choose when to begin and end, and whether to share your screen.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-9 sm:py-24">
+        <div className="grid gap-8 md:grid-cols-[.8fr_1.2fr] md:items-end md:gap-16">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.18em] text-[#a8775c]">THE TOOLKIT</p>
+            <h2 className="mt-4 max-w-md text-4xl font-medium leading-[1.02] tracking-[-.065em] sm:text-5xl">A little structure.<br />A lot more room.</h2>
+          </div>
+          <p className="max-w-xl pb-1 text-[14px] leading-7 text-[#777168]">Focus is the main event. The rest of Fudge stays nearby for the small things that help your day move along.</p>
+        </div>
+
+        <div className="mt-10 overflow-hidden rounded-[28px] bg-[#292722] text-white sm:mt-14">
+          <div className="grid md:grid-cols-[.78fr_1.22fr]">
+            <div className="flex flex-col justify-between border-b border-white/10 p-6 sm:p-9 md:border-b-0 md:border-r">
+              <span className="text-[10px] font-semibold tracking-[.16em] text-[#d9aa8e]">01 / FOCUS MODE</span>
+              <div className="mt-12 md:mt-24">
+                <h3 className="max-w-sm text-3xl font-medium leading-tight tracking-[-.055em] sm:text-4xl">Make space for one thing.</h3>
+                <p className="mt-4 max-w-sm text-[13px] leading-6 text-white/55">Choose a task and Fudge helps you hold onto it, without turning your work into a dashboard.</p>
+              </div>
+            </div>
+            <ol className="divide-y divide-white/10 px-6 sm:px-9">
+              {[
+                ["Set a clear task", "Fudge checks that your focus task is specific, then helps turn it into a short plan."],
+                ["Stay gently accountable", "The session timer stays in the island. If you opt in, camera and screen snapshots can inform occasional distraction reminders."],
+                ["Choose your level of sharing", "Camera checks run during a session. Screen checks are optional, use the Windows picker, and can be ended at any time."],
+              ].map(([title, text], index) => (
+                <li key={title} className="grid gap-2 py-6 sm:grid-cols-[34px_1fr] sm:gap-4 sm:py-7">
+                  <span className="pt-0.5 font-mono text-[11px] text-[#d9aa8e]">0{index + 1}</span>
+                  <div><h4 className="text-[14px] font-medium">{title}</h4><p className="mt-1.5 max-w-lg text-[12px] leading-6 text-white/50">{text}</p></div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+
+        <div className="mt-14 grid gap-10 md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.16em] text-[#a8775c]">02 / TALK IT THROUGH</p>
+            <ul className="mt-5 divide-y divide-[#e7e0d7] border-y border-[#e7e0d7]">
+              {[
+                ["Voice and chat", "Speak with push-to-talk or type; turn spoken replies on in Settings."],
+                ["Questions and web search", "Ask general questions or search the web, including current news."],
+                ["Read a selected screen", "Request a one-time screen reading using the Windows system picker."],
+              ].map(([title, text]) => <li key={title} className="py-4"><h3 className="text-[13px] font-semibold">{title}</h3><p className="mt-1 text-[12px] leading-5 text-[#817a70]">{text}</p></li>)}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.16em] text-[#a8775c]">03 / KEEP IT CLOSE</p>
+            <ul className="mt-5 divide-y divide-[#e7e0d7] border-y border-[#e7e0d7]">
+              {[
+                ["Task visuals", "Generate a wordless image related to your focus task, with a short spoken cue."],
+                ["App shortcuts", "Find installed Windows apps, then ask Fudge to open or close one."],
+                ["Media controls", "See supported Windows media sessions and adjust the music visualizer in Settings."],
+              ].map(([title, text]) => <li key={title} className="py-4"><h3 className="text-[13px] font-semibold">{title}</h3><p className="mt-1 text-[12px] leading-5 text-[#817a70]">{text}</p></li>)}
+            </ul>
+          </div>
+        </div>
+        <p className="mx-auto mt-12 max-w-3xl border-t border-[#e7e0d7] pt-5 text-center text-[11px] leading-6 text-[#9a9388]">Fudge is a lightweight focus aid, not a medical tool, time tracker, or employee monitoring system. Focus checks depend on permissions, camera availability, internet access, and the hosted AI service.</p>
       </section>
 
       <footer className="mx-auto flex w-full max-w-6xl items-center justify-between border-t border-[#e7e0d7] px-5 py-5 text-[10px] text-[#a19a90] sm:px-9">
