@@ -86,7 +86,7 @@ export default function AppPreview() {
       <div className="mx-auto max-w-[900px]">
         {/* Flat monitor illustration */}
         <div className="rounded-[20px] border-[5px] border-[#343330] bg-[#171716] p-[5px] shadow-[0_20px_55px_rgba(38,35,30,.2)] sm:rounded-[26px] sm:border-[7px] sm:p-[7px]">
-          <div className="relative overflow-hidden rounded-[12px] bg-[radial-gradient(ellipse_at_50%_0%,#e9d6c4_0%,transparent_42%),linear-gradient(135deg,#b7c6bd_0%,#d4d2c5_52%,#aabbb1_100%)] px-3 pb-7 pt-5 sm:rounded-[16px] sm:px-6 sm:pb-9 sm:pt-7 md:px-9">
+          <div className="relative overflow-hidden rounded-[12px] bg-cover bg-center px-3 pb-7 pt-5 sm:rounded-[16px] sm:px-6 sm:pb-9 sm:pt-7 md:px-9" style={{ backgroundImage: "url('/wallpaper.jpg')" }}>
             <span aria-hidden="true" className="absolute left-1/2 top-2 size-1 -translate-x-1/2 rounded-full bg-[#58625c]/45 sm:top-2.5" />
             <div aria-hidden="true" className="absolute inset-0 opacity-[.12]" style={{ backgroundImage: "radial-gradient(#fff 0.7px, transparent 0.7px)", backgroundSize: "5px 5px" }} />
             <div ref={stageRef} className="relative mx-auto min-h-[350px] max-w-[730px] px-0 pb-4 sm:min-h-[460px] sm:px-4 sm:pb-3">
