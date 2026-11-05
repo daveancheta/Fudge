@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowDownToLine, AudioLines, Check, Download, ArrowUpRight } from "lucide-react";
-import DownloadIsland from "./download-island";
+import AppPreview from "./app-preview";
 
 export const metadata: Metadata = {
   title: "Download Fudge for Windows",
@@ -29,7 +29,6 @@ const installers = [
 export default function DownloadPage() {
   return (
     <main className="relative isolate flex h-dvh min-h-[560px] flex-col overflow-x-hidden overflow-y-auto bg-[#f7f5f0] text-[#27251f]">
-      <DownloadIsland />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -left-40 -top-52 size-[520px] rounded-full bg-[#f0e4d7]/60 blur-[100px]" />
         <div className="absolute -right-48 top-28 size-[540px] rounded-full bg-[#e7e9e4]/75 blur-[110px]" />
@@ -110,6 +109,8 @@ export default function DownloadPage() {
           <span>Choose the setup file for a guided install</span>
         </div>
       </section>
+
+      <AppPreview />
 
       <section id="about" className="border-y border-[#e8e1d8] bg-[#efe9df] px-5 py-16 sm:px-9 sm:py-24">
         <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[.8fr_1.2fr] md:gap-16">
