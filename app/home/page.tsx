@@ -28,7 +28,7 @@ const installers = [
 
 export default function DownloadPage() {
   return (
-    <main className="relative isolate flex h-dvh min-h-[560px] flex-col overflow-x-hidden overflow-y-auto bg-[#f7f5f0] text-[#27251f]">
+    <main className="home-scroll relative isolate flex h-dvh min-h-[560px] flex-col overflow-x-hidden overflow-y-auto bg-[#f7f5f0] text-[#27251f]">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -left-40 -top-52 size-[520px] rounded-full bg-[#f0e4d7]/60 blur-[100px]" />
         <div className="absolute -right-48 top-28 size-[540px] rounded-full bg-[#e7e9e4]/75 blur-[110px]" />
